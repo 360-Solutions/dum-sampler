@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.1</title>
+    <title>dum-Sampler v0.11.2</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -83,9 +83,10 @@
         .rec-visualizer-zone { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #1a4a7a; position: relative; }
         .modal-header-btns { display: flex; justify-content: space-around; align-items: center; margin-bottom: 15px; }
 
-        .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 40px; border-radius: 40px; font-weight: bold; font-size: 14px; min-width: 140px; cursor: pointer; }
+        .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 30px; border-radius: 40px; font-weight: bold; font-size: 13px; min-width: 120px; cursor: pointer; }
         .rec-btn.waiting { background: #ffa500; color: #000; }
         .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
+        .clear-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 10px; cursor: pointer; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
@@ -99,7 +100,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.1</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.2</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -125,14 +126,15 @@
     <div class="modal-content">
         <div class="rec-visualizer-zone">
             <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:10px; color:var(--accent-color)">
-                <span id="modal-track-name">MIC TESTED - READY</span>
+                <span id="modal-track-name">READY</span>
                 <span id="modal-bar-label">1 BAR</span>
             </div>
             <div id="modal-bars-container"></div>
         </div>
 
         <div class="modal-header-btns">
-            <button class="bar-toggle" id="modal-bar-cycle" style="height:45px; min-width:80px;">BARS</button>
+            <button class="clear-btn" id="modal-clear-btn">CLEAR LANE</button>
+            <button class="bar-toggle" id="modal-bar-cycle">BARS</button>
             <button class="rec-btn" id="rec-action-btn">● RECORD</button>
         </div>
 
@@ -149,6 +151,7 @@
     let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
     let cycleCounter = 0, recordCounter = 0;
     let mediaRecorder, audioChunks = [];
+    let userSampleCount = 0;
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
     const tracks = [
@@ -172,18 +175,26 @@
     // --- MIC ENGINE ---
     async function initMic() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // EchoCancellation: false helps prevent the 'ducking' volume issue on iOS
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
+            });
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                
+                userSampleCount++;
+                const newName = `USER_SAMPLE_${userSampleCount}`;
                 tracks[activeTrackIdx].buffer = decodedBuffer;
-                tracks[activeTrackIdx].name = "USER_SAMPLE";
+                tracks[activeTrackIdx].name = newName;
+                
                 renderSequencer();
+                renderModalLane(); // Update modal immediately with new name
             };
-        } catch (err) { console.log("Mic error: " + err); }
+        } catch (err) { alert("Mic Error: " + err); }
     }
 
     function renderSequencer() {
@@ -213,7 +224,7 @@
         const track = tracks[activeTrackIdx];
         const container = document.getElementById('modal-bars-container');
         document.getElementById('modal-track-name').innerText = track.name.toUpperCase();
-        document.getElementById('modal-bar-label').innerText = `FULL CYCLE PRE-ROLL ENGAGED`;
+        document.getElementById('modal-bar-label').innerText = `FULL PRE-ROLL WAIT`;
         container.innerHTML = '';
         for(let b=0; b < track.bars; b++) {
             const row = document.createElement('div'); row.className = 'bar-row';
@@ -231,7 +242,6 @@
                 const laneMax = tracks[activeTrackIdx].bars * 16;
                 const laneRelative = currentStep % laneMax;
 
-                // PHILOSOPHY: Wait for the NEXT 'one'
                 if (isWaitingForFirstOne && laneRelative === 0) {
                     isWaitingForFirstOne = false;
                     isWaitingFullCycle = true;
@@ -239,13 +249,12 @@
                     updateRecBtnUI();
                 }
 
-                // PHILOSOPHY: Wait for the FULL CYCLE preparation
                 if (isWaitingFullCycle) {
                     cycleCounter++;
                     if (cycleCounter > laneMax) {
                         isWaitingFullCycle = false;
                         isRecordingNow = true;
-                        masterMuted = true; // Auto-mute beat
+                        masterMuted = true;
                         recordCounter = 0;
                         audioChunks = [];
                         if (mediaRecorder) mediaRecorder.start();
@@ -253,12 +262,11 @@
                     }
                 }
 
-                // PHILOSOPHY: Record for exactly the Bar Length
                 if (isRecordingNow) {
                     recordCounter++;
                     if (recordCounter > laneMax) {
                         isRecordingNow = false;
-                        masterMuted = false; // Release mute
+                        masterMuted = false;
                         if (mediaRecorder) mediaRecorder.stop();
                         updateRecBtnUI();
                     }
@@ -268,6 +276,7 @@
             if (!masterMuted) {
                 tracks.forEach((track) => {
                     if (track.steps[currentStep % (track.bars * 16)]) {
+                        // Offset for latency could be subtracted from nextStepTime
                         playSample(track.buffer, nextStepTime, track.volume);
                     }
                 });
@@ -283,6 +292,15 @@
         if (!mediaRecorder) initMic(); 
         isWaitingForFirstOne = true;
         updateRecBtnUI();
+    };
+
+    document.getElementById('modal-clear-btn').onclick = () => {
+        if(activeTrackIdx === null) return;
+        tracks[activeTrackIdx].buffer = null;
+        tracks[activeTrackIdx].name = "EMPTY";
+        tracks[activeTrackIdx].steps = new Array(64).fill(false);
+        renderSequencer();
+        renderModalLane();
     };
 
     function updateRecBtnUI() {
@@ -301,7 +319,11 @@
         source.buffer = buffer; 
         gain.gain.value = vol * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(audioCtx.destination);
-        source.start(time);
+        
+        // --- LATENCY COMPENSATION ---
+        // We start the sample slightly 'late' to match the record lag
+        const latencyComp = 0.050; // 50ms compensation
+        source.start(time + latencyComp);
     }
 
     function updateUI() {
