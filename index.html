@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.7</title>
+    <title>dum-Sampler v0.11.8</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -26,45 +26,53 @@
         .version-info { font-size: 10px; text-align: right; opacity: 0.8; }
 
         .transport {
-            background: var(--panel-color); padding: 15px; border-radius: 10px;
-            display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;
+            background: var(--panel-color); padding: 10px; border-radius: 10px;
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;
         }
 
         .transport-top { display: flex; align-items: center; gap: 15px; width: 100%; }
         #play-btn {
-            background: var(--accent-color); border: none; padding: 15px 30px;
+            background: var(--accent-color); border: none; padding: 15px 25px;
             font-weight: bold; border-radius: 5px; font-size: 14px; color: #001a35; cursor: pointer;
         }
 
-        .sliders-group { flex-grow: 1; }
-        .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); margin-bottom: 2px; display: block; }
-        input[type=range] { width: 100%; accent-color: var(--accent-color); height: 20px; }
+        .sliders-group { flex-grow: 1; display: flex; flex-direction: column; gap: 6px;}
+        .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); display: block; }
+        input[type=range] { width: 100%; accent-color: var(--accent-color); height: 16px; margin:0;}
 
-        .track-lane { background: rgba(0,0,0,0.2); margin-bottom: 10px; border-radius: 8px; padding: 6px; }
+        .nudge-controls { display: flex; align-items: center; justify-content: space-between; background: #001a35; padding: 4px 8px; border-radius: 4px; }
+        .nudge-btn { background: #444; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .nudge-btn:active { background: var(--accent-color); color: #000; }
+        .nudge-display { font-family: monospace; font-size: 12px; color: #add8e6; width: 40px; text-align: center; }
+
+        .track-lane { background: rgba(0,0,0,0.2); margin-bottom: 8px; border-radius: 8px; padding: 6px; }
         .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
 
         .sample-name {
             background: var(--node-off); padding: 4px 8px; border-radius: 4px;
             font-size: 10px; min-width: 85px; color: #add8e6; cursor: pointer;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px;
         }
 
-        .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 3px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
-        .bar-row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; position: relative; margin-bottom: 3px; }
-        .node { height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
+        .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
+        .bar-row { display: flex; width: 100%; justify-content: space-between; position: relative; margin-bottom: 3px; }
+        .node-wrapper { position: relative; width: 100%; display: flex; justify-content: space-between; }
+        .node { width: 6%; height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
         .node.active { background: var(--node-on); box-shadow: 0 0 8px var(--node-on); }
-        .playhead { position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 5; display: none; }
+        
+        .playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: #fff; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 5; display: none; margin-left: 2px;}
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; justify-content: center; align-items: center; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: var(--panel-color); width: 90%; max-height: 92%; padding: 15px; border-radius: 12px; border: 2px solid var(--accent-color); display: flex; flex-direction: column; }
 
-        .rec-visualizer-zone { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #1a4a7a; position: relative; }
-        .modal-header-btns { display: flex; justify-content: space-around; align-items: center; margin-bottom: 15px; }
+        .rec-visualizer-zone { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #1a4a7a; position: relative; }
+        .modal-header-btns { display: flex; justify-content: space-around; align-items: center; margin-bottom: 12px; }
 
-        .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 30px; border-radius: 40px; font-weight: bold; font-size: 13px; min-width: 120px; cursor: pointer; }
+        .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 25px; border-radius: 40px; font-weight: bold; font-size: 13px; min-width: 120px; cursor: pointer; }
         .rec-btn.waiting { background: #ffa500; color: #000; }
         .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
         
-        .action-btn { background: #444; color: white; border: none; padding: 8px; border-radius: 5px; font-size: 10px; cursor: pointer; }
+        .action-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
         .commit-btn { background: #28a745; color: white; font-weight: bold; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
@@ -72,14 +80,14 @@
         .sample-list { overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 5px; flex-grow: 1; }
         .sample-item { padding: 12px; border-bottom: 1px solid #1a4a7a; font-size: 14px; color: #add8e6; cursor: pointer; }
         
-        .modal-node { height: 16px; background: #003366; border-radius: 1px; }
+        .modal-node { width: 6%; height: 16px; background: #003366; border-radius: 1px; }
         .modal-node.the-only-one { background: var(--the-one) !important; box-shadow: 0 0 10px var(--the-one); }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.7</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.8</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -87,14 +95,22 @@
     <div class="transport-top">
         <button id="play-btn">PLAY</button>
         <div class="sliders-group">
-            <div class="slider-row">
-                <span class="slider-label">Master Volume</span>
-                <input type="range" id="master-vol" min="0" max="1" step="0.05" value="0.8">
-            </div>
-            <div class="slider-row">
+            <div style="display: flex; justify-content: space-between;">
+                <span class="slider-label">Volume</span>
                 <span class="slider-label">Tempo: <span id="bpm-text">150 BPM</span></span>
-                <input type="range" id="tempo" min="40" max="220" value="150" oninput="document.getElementById('bpm-text').innerText = this.value + ' BPM'">
             </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="range" id="master-vol" min="0" max="1" step="0.05" value="0.8" style="width:40%;">
+                <input type="range" id="tempo" min="40" max="220" value="150" oninput="document.getElementById('bpm-text').innerText = this.value + ' BPM'" style="width:60%;">
+            </div>
+        </div>
+    </div>
+    <div class="nudge-controls">
+        <span class="slider-label" style="color:#add8e6; margin:0;">Global Latency Comp</span>
+        <div style="display:flex; gap:5px; align-items:center;">
+            <button class="nudge-btn" onclick="adjGlobalNudge(-5)">-5ms</button>
+            <span class="nudge-display" id="global-nudge-val">0ms</span>
+            <button class="nudge-btn" onclick="adjGlobalNudge(5)">+5ms</button>
         </div>
     </div>
 </div>
@@ -105,15 +121,19 @@
     <div class="modal-content">
         <div class="rec-visualizer-zone">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span id="modal-track-name" style="font-size:10px; color:var(--accent-color); font-weight:bold;">READY</span>
-                <button class="bar-toggle" id="modal-bar-cycle" style="min-width: 60px;">1 BAR</button>
+                <span id="modal-track-name" style="font-size:11px; color:var(--accent-color); font-weight:bold;">READY</span>
+                <button class="bar-toggle" id="modal-bar-cycle" style="min-width: 60px; padding:6px;">1 BAR</button>
             </div>
             <div id="modal-bars-container"></div>
         </div>
         
-        <div style="margin-bottom: 15px;">
-            <span class="slider-label">Track Nudge (Latency Adjust): <span id="modal-nudge-val">0ms</span></span>
-            <input type="range" id="modal-nudge" min="-500" max="500" value="0" step="10">
+        <div class="nudge-controls" style="margin-bottom: 15px; background: rgba(0,0,0,0.5);">
+            <span class="slider-label" style="color:#add8e6; margin:0;">Track Start Nudge</span>
+            <div style="display:flex; gap:5px; align-items:center;">
+                <button class="nudge-btn" onclick="adjTrackNudge(-5)">-5ms</button>
+                <span class="nudge-display" id="modal-nudge-val">0ms</span>
+                <button class="nudge-btn" onclick="adjTrackNudge(5)">+5ms</button>
+            </div>
         </div>
 
         <div class="modal-header-btns">
@@ -123,7 +143,7 @@
         </div>
 
         <div class="sample-list" id="modal-sample-list"></div>
-        <button onclick="closeModal()" style="margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">BACK</button>
+        <button onclick="closeModal()" style="margin-top:10px; padding:15px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">BACK TO GRID</button>
     </div>
 </div>
 
@@ -154,6 +174,19 @@
     let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
     let mediaRecorder = null, audioChunks = [], tempBuffer = null;
     let targetBarLength = 16;
+    let globalNudge = 0;
+
+    function adjGlobalNudge(amt) {
+        globalNudge += amt;
+        document.getElementById('global-nudge-val').innerText = globalNudge + 'ms';
+    }
+
+    function adjTrackNudge(amt) {
+        if(activeTrackIdx !== null) {
+            tracks[activeTrackIdx].nudge += amt;
+            document.getElementById('modal-nudge-val').innerText = tracks[activeTrackIdx].nudge + 'ms';
+        }
+    }
 
     function renderSequencer() {
         const mainGrid = document.getElementById('main-grid');
@@ -166,16 +199,29 @@
             for(let b=0; b < track.bars; b++) {
                 barHtml += `<div class="bar-row">
                     <div class="playhead" id="ph-${tIdx}-bar-${b}"></div>
+                    <div class="node-wrapper">
                     ${Array.from({length: 16}).map((_, s) => `<div class="node ${track.steps[(b*16)+s]?'active':''}" onclick="tglNode(${tIdx},${(b*16)+s},this)"></div>`).join('')}
+                    </div>
                 </div>`;
             }
             lane.innerHTML = `<div class="track-controls">
                 <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
-                <input type="range" min="0" max="3" step="0.1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value">
+                <input type="range" min="0" max="3" step="0.1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:40%;">
                 <button class="bar-toggle" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
             </div><div class="bars-container">${barHtml}</div>`;
             mainGrid.appendChild(lane);
         });
+    }
+
+    // Synthesizes a drum hit if the file is missing
+    function generateFallbackBuffer() {
+        if (!audioCtx) return null;
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.02));
+        }
+        return buffer;
     }
 
     async function preFetchAll() {
@@ -184,7 +230,8 @@
                 try {
                     const res = await fetch(`samples/${t.name}`);
                     if(res.ok) preFetchedBuffers[t.name] = await res.arrayBuffer();
-                } catch (e) { console.warn("Missing file or offline:", t.name); }
+                    else console.warn("Fetch failed, will use fallback for", t.name);
+                } catch (e) { console.warn("Offline, will use fallback for", t.name); }
             }
         }
     }
@@ -193,11 +240,38 @@
         if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         for (let i = 0; i < tracks.length; i++) {
-            if (tracks[i].name !== 'EMPTY' && preFetchedBuffers[tracks[i].name] && !tracks[i].buffer) {
-                const bufferCopy = preFetchedBuffers[tracks[i].name].slice(0);
-                audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[i].buffer = decoded; });
+            if (tracks[i].name !== 'EMPTY' && !tracks[i].buffer) {
+                if (preFetchedBuffers[tracks[i].name]) {
+                    const bufferCopy = preFetchedBuffers[tracks[i].name].slice(0);
+                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[i].buffer = decoded; }, () => {
+                        tracks[i].buffer = generateFallbackBuffer(); // Fallback on decode error
+                    });
+                } else {
+                    tracks[i].buffer = generateFallbackBuffer(); // Fallback on missing file
+                }
             }
         }
+    }
+
+    // AUDIO NORMALIZATION ENGINE
+    function normalizeBuffer(buffer) {
+        let maxPeak = 0;
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+            const data = buffer.getChannelData(c);
+            for (let i = 0; i < data.length; i++) {
+                if (Math.abs(data[i]) > maxPeak) maxPeak = Math.abs(data[i]);
+            }
+        }
+        if (maxPeak > 0 && maxPeak < 1.0) {
+            const multiplier = 1.0 / maxPeak; // Math to bring peak to 0dB
+            for (let c = 0; c < buffer.numberOfChannels; c++) {
+                const data = buffer.getChannelData(c);
+                for (let i = 0; i < data.length; i++) {
+                    data[i] *= multiplier;
+                }
+            }
+        }
+        return buffer;
     }
 
     async function initMic() {
@@ -212,7 +286,7 @@
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 audioCtx.decodeAudioData(arrayBuffer, (decoded) => {
-                    tempBuffer = decoded;
+                    tempBuffer = normalizeBuffer(decoded); // BOOST VOLUME HERE
                     document.getElementById('modal-track-name').innerText = "PREVIEW READY";
                 });
             };
@@ -262,8 +336,7 @@
         if (isPlaying) { setTimeout(scheduler, 25); requestAnimationFrame(updateUI); }
     }
 
-    // Notice the new nudgeMs parameter logic to trim or delay audio
-    function playSample(buffer, time, vol, nudgeMs = 0) {
+    function playSample(buffer, time, vol, localNudgeMs = 0) {
         if (!buffer || !audioCtx) return;
         const source = audioCtx.createBufferSource();
         const gain = audioCtx.createGain();
@@ -271,27 +344,17 @@
         gain.gain.value = vol * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(audioCtx.destination);
         
-        let startTime = time;
-        let trimOffset = 0;
+        let totalNudge = globalNudge + localNudgeMs;
+        let startTime = time + (totalNudge / 1000); // Shifting schedule time natively
         
-        if (nudgeMs < 0) {
-            trimOffset = Math.abs(nudgeMs) / 1000; // Trim start for negative latency
-        } else if (nudgeMs > 0) {
-            startTime += nudgeMs / 1000; // Delay start for positive latency
-        }
+        // Prevent crashing if a massive negative nudge puts scheduling in the past
+        if (startTime < audioCtx.currentTime) { startTime = audioCtx.currentTime; }
         
-        source.start(startTime, trimOffset);
+        source.start(startTime);
     }
 
     function updateUI() {
         const step = currentStep - 1;
-        const nodes = document.querySelectorAll('.node');
-        const modalNodes = document.querySelectorAll('.modal-node');
-        
-        if (!nodes.length) return;
-        
-        const nodeWidth = nodes[0].offsetWidth + 3;
-        const modalNodeWidth = modalNodes.length ? modalNodes[0].offsetWidth + 3 : nodeWidth;
         
         tracks.forEach((track, tIdx) => {
             const laneStep = step % (track.bars * 16);
@@ -300,14 +363,16 @@
                 const mph = document.getElementById(`modal-ph-bar-${b}`); if(mph) mph.style.display = 'none';
             }
             
+            // Percentage based positioning for main grid
             const mainPh = document.getElementById(`ph-${tIdx}-bar-${Math.floor(laneStep/16)}`);
-            if (mainPh && isPlaying) { mainPh.style.display = 'block'; mainPh.style.transform = `translateX(${(laneStep%16)*nodeWidth}px)`; }
+            if (mainPh && isPlaying) { mainPh.style.display = 'block'; mainPh.style.left = `${(laneStep%16) * 6.25}%`; }
             
+            // Percentage based positioning for modal grid
             if (activeTrackIdx === tIdx) {
                 const modalPh = document.getElementById(`modal-ph-bar-${Math.floor(laneStep/16)}`);
                 if (modalPh && isPlaying) { 
                     modalPh.style.display = 'block'; 
-                    modalPh.style.transform = `translateX(${(laneStep%16)*modalNodeWidth}px)`; 
+                    modalPh.style.left = `${(laneStep%16) * 6.25}%`; 
                 }
             }
         });
@@ -341,16 +406,10 @@
     };
 
     document.getElementById('modal-clear-btn').onclick = () => {
-        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
+        tempBuffer = null; tracks[activeTrackIdx].buffer = generateFallbackBuffer(); tracks[activeTrackIdx].name = "EMPTY";
         tracks[activeTrackIdx].steps.fill(false); tracks[activeTrackIdx].nudge = 0; 
+        document.getElementById('modal-nudge-val').innerText = '0ms';
         renderSequencer(); renderModalLane();
-    };
-
-    document.getElementById('modal-nudge').oninput = function() {
-        if(activeTrackIdx !== null) {
-            tracks[activeTrackIdx].nudge = parseInt(this.value);
-            document.getElementById('modal-nudge-val').innerText = this.value + 'ms';
-        }
     };
 
     document.getElementById('modal-bar-cycle').onclick = () => {
@@ -368,7 +427,6 @@
     
     function openModal(i) { 
         activeTrackIdx = i; 
-        document.getElementById('modal-nudge').value = tracks[i].nudge || 0;
         document.getElementById('modal-nudge-val').innerText = (tracks[i].nudge || 0) + 'ms';
         renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; 
     }
@@ -381,13 +439,14 @@
             const item = document.createElement('div'); item.className = 'sample-item'; item.innerText = file;
             item.onclick = () => { 
                 tracks[activeTrackIdx].name = file; 
-                tracks[activeTrackIdx].nudge = 0; // Reset nudge on new sample load
-                document.getElementById('modal-nudge').value = 0;
+                tracks[activeTrackIdx].nudge = 0;
                 document.getElementById('modal-nudge-val').innerText = '0ms';
                 if(preFetchedBuffers[file]) {
                     const bufferCopy = preFetchedBuffers[file].slice(0);
-                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[activeTrackIdx].buffer = decoded; });
-                }
+                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[activeTrackIdx].buffer = decoded; }, () => {
+                        tracks[activeTrackIdx].buffer = generateFallbackBuffer();
+                    });
+                } else { tracks[activeTrackIdx].buffer = generateFallbackBuffer(); }
                 renderSequencer(); renderModalLane(); 
             };
             list.appendChild(item);
@@ -404,7 +463,9 @@
         for(let b=0; b < track.bars; b++) {
             const row = document.createElement('div'); row.className = 'bar-row';
             row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}" style="display:none;"></div>` + 
-                Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('');
+                `<div class="node-wrapper">` +
+                Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('') +
+                `</div>`;
             container.appendChild(row);
         }
     }
