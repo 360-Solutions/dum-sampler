@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.12.5</title>
+    <title>dum-Sampler v1.0</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -42,17 +42,20 @@
         input[type=range] { width: 100%; accent-color: var(--accent-color); height: 20px; margin:0; }
 
         .track-lane { background: rgba(0,0,0,0.2); margin-bottom: 8px; border-radius: 8px; padding: 6px; }
-        .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 6px; }
+        .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 4px; }
 
         .sample-name {
             background: var(--node-off); padding: 4px 8px; border-radius: 4px;
-            font-size: 10px; min-width: 85px; color: #add8e6; cursor: pointer;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85px;
+            font-size: 10px; min-width: 65px; max-width: 65px; color: #add8e6; cursor: pointer;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
         }
 
-        .controls-right { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-        .action-sm-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
-        .action-sm-btn.active-choke { color: #ffffff; border-color: #ffffff; }
+        .controls-right { display: flex; gap: 4px; flex-wrap: nowrap; justify-content: flex-end; }
+        .action-sm-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; cursor: pointer; text-align: center;}
+        
+        .active-choke { color: #ffffff; border-color: #ffffff; }
+        .active-mute { background-color: #880000 !important; color: #ffffff !important; border-color: #ff3333 !important; }
+        .active-solo { background-color: #aa7700 !important; color: #ffffff !important; border-color: #ffaa00 !important; }
         
         .nudge-panel { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-bottom: 6px; display: none; }
         
@@ -87,7 +90,7 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.5</span></div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v1.0</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -139,14 +142,14 @@
 
 <script>
     const tracks = [
-        { name: 'ds_kick1.wav', steps: [0, 4], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_snare1.wav', steps: [8], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null }
+        { name: 'ds_kick1.wav', steps: [0, 4], volume: 80, bars: 1, nudge: 0, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'ds_snare1.wav', steps: [8], volume: 80, bars: 1, nudge: 0, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 80, bars: 1, nudge: 0, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, mute: false, solo: false, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, mute: false, solo: false, buffer: null, lastSource: null }
     ];
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
@@ -187,11 +190,15 @@
             lane.innerHTML = `
             <div class="track-controls">
                 <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
-                <input type="range" min="0" max="100" step="1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:25%;">
+                <div style="display:flex; align-items:center; gap:3px; flex-grow:1; margin: 0 4px;">
+                    <button class="action-sm-btn ${track.mute ? 'active-mute' : ''}" style="padding:4px;" onclick="toggleMute(${tIdx})">M</button>
+                    <input type="range" min="0" max="100" step="1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:100%; min-width:30px;">
+                    <button class="action-sm-btn ${track.solo ? 'active-solo' : ''}" style="padding:4px;" onclick="toggleSolo(${tIdx})">S</button>
+                </div>
                 <div class="controls-right">
                     <button class="action-sm-btn" onclick="toggleNudgePanel(${tIdx})">SYNC</button>
-                    <button class="action-sm-btn ${track.choke ? 'active-choke' : ''}" onclick="toggleChoke(${tIdx})">CHOKE:${track.choke ? 'ON' : 'OFF'}</button>
-                    <button class="action-sm-btn" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
+                    <button class="action-sm-btn ${track.choke ? 'active-choke' : ''}" onclick="toggleChoke(${tIdx})">CHK</button>
+                    <button class="action-sm-btn" onclick="cycleBars(${tIdx})" style="min-width:24px;">${track.bars}B</button>
                 </div>
             </div>
             <div class="nudge-panel" id="nudge-panel-${tIdx}">
@@ -212,10 +219,9 @@
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     }
 
-    function toggleChoke(tIdx) {
-        tracks[tIdx].choke = !tracks[tIdx].choke;
-        renderSequencer();
-    }
+    function toggleChoke(tIdx) { tracks[tIdx].choke = !tracks[tIdx].choke; renderSequencer(); }
+    function toggleMute(tIdx) { tracks[tIdx].mute = !tracks[tIdx].mute; renderSequencer(); }
+    function toggleSolo(tIdx) { tracks[tIdx].solo = !tracks[tIdx].solo; renderSequencer(); }
 
     function updateLaneNudge(tIdx, val) {
         tracks[tIdx].nudge = parseInt(val);
@@ -277,7 +283,6 @@
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             
-            // Auto-Commit Logic directly to the track buffer
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
@@ -323,8 +328,6 @@
                     }
                 }
                 
-                // Artificially trigger the "Red Node" in the modal instantly, 
-                // but ONLY if the user doesn't already have the grid node active.
                 if (!isRecordingNow && laneRelative === 0) {
                     const track = tracks[activeTrackIdx];
                     if (track.buffer && !track.steps[0]) {
@@ -334,9 +337,18 @@
             }
 
             if (!masterMuted) {
+                const isAnySolo = tracks.some(t => t.solo);
                 tracks.forEach((track) => {
                     if (track.steps[currentStep % (track.bars * 16)]) { 
-                        playSample(track.buffer, nextStepTime, track.volume, track.nudge, track); 
+                        let shouldPlay = false;
+                        if (isAnySolo) {
+                            if (track.solo) shouldPlay = true;
+                        } else {
+                            if (!track.mute) shouldPlay = true;
+                        }
+                        if (shouldPlay) {
+                            playSample(track.buffer, nextStepTime, track.volume, track.nudge, track); 
+                        }
                     }
                 });
             }
