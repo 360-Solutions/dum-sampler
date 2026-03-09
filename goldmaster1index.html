@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>dum-Sampler v0.10.2</title>
+    <style>
+        :root {
+            --bg-color: #001a35;
+            --panel-color: #002d5c;
+            --accent-color: #ffaa00;
+            --text-color: #ffffff;
+            --node-off: #004080;
+            --node-on: #ffaa00;
+            --rec-red: #ff0000;
+            --the-one: #ff3333;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, sans-serif;
+            margin: 0; padding: 10px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        header { display: flex; justify-content: space-between; align-items: center; padding: 5px 0 10px 0; }
+        .version-info { font-size: 10px; text-align: right; opacity: 0.8; }
+
+        .transport {
+            background: var(--panel-color);
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .transport-top { display: flex; align-items: center; gap: 15px; width: 100%; }
+
+        #play-btn {
+            background: var(--accent-color);
+            border: none;
+            padding: 15px 30px;
+            font-weight: bold;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #001a35;
+            cursor: pointer;
+        }
+
+        .sliders-group { flex-grow: 1; }
+        .slider-row { margin-bottom: 8px; }
+        .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); margin-bottom: 2px; display: block; }
+        input[type=range] { width: 100%; accent-color: var(--accent-color); height: 20px; }
+
+        .track-lane { background: rgba(0,0,0,0.2); margin-bottom: 10px; border-radius: 8px; padding: 6px; }
+        .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
+
+        .sample-name {
+            background: var(--node-off);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            min-width: 85px;
+            color: #add8e6;
+            cursor: pointer;
+        }
+
+        .vol-slider-main { flex-grow: 1; height: 18px; margin: 0; }
+        .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 3px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
+
+        .bar-row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; position: relative; margin-bottom: 3px; }
+        .node { height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
+        .node.active { background: var(--node-on); box-shadow: 0 0 8px var(--node-on); }
+        
+        /* The White Line (Playhead) */
+        .playhead { 
+            position: absolute; 
+            top: 0; bottom: 0; width: 3px; 
+            background: #fff; 
+            box-shadow: 0 0 8px #fff; 
+            pointer-events: none; 
+            z-index: 20; 
+            display: none; 
+        }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 100; justify-content: center; align-items: center; }
+        .modal-content { background: var(--panel-color); width: 90%; max-height: 92%; padding: 15px; border-radius: 12px; border: 2px solid var(--accent-color); display: flex; flex-direction: column; }
+
+        .rec-visualizer-zone { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #1a4a7a; position: relative; }
+        .modal-header-btns { display: flex; justify-content: space-around; align-items: center; margin-bottom: 15px; }
+
+        .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 40px; border-radius: 40px; font-weight: bold; font-size: 14px; min-width: 140px; cursor: pointer; }
+        .rec-btn.waiting { background: #ffa500; color: #000; }
+        .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        .sample-list { overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 5px; flex-grow: 1; }
+        .sample-item { padding: 12px; border-bottom: 1px solid #1a4a7a; font-size: 14px; color: #add8e6; cursor: pointer; }
+        
+        .modal-node { height: 16px; background: #003366; border-radius: 1px; }
+        .modal-node.the-only-one { background: var(--the-one) !important; box-shadow: 0 0 10px var(--the-one); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.10.2</span></div>
+    <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
+</header>
+
+<div class="transport">
+    <div class="transport-top">
+        <button id="play-btn">PLAY</button>
+        <div class="sliders-group">
+            <div class="slider-row">
+                <span class="slider-label">Master Volume</span>
+                <input type="range" id="master-vol" min="0" max="1" step="0.05" value="0.8">
+            </div>
+            <div class="slider-row">
+                <span class="slider-label">Tempo: <span id="bpm-text">150 BPM</span></span>
+                <input type="range" id="tempo" min="40" max="220" value="150">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="main-grid"></div>
+
+<div id="sample-modal" class="modal">
+    <div class="modal-content">
+        <div class="rec-visualizer-zone">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:10px; color:var(--accent-color)">
+                <span id="modal-track-name">READY</span>
+                <span id="modal-bar-label">1 BAR</span>
+            </div>
+            <div id="modal-bars-container"></div>
+        </div>
+
+        <div class="modal-header-btns">
+            <button class="bar-toggle" id="modal-bar-cycle" style="height:45px; min-width:80px;">BARS</button>
+            <button class="rec-btn" id="rec-action-btn">● RECORD</button>
+        </div>
+
+        <div class="sample-list" id="modal-sample-list"></div>
+        <button onclick="closeModal()" style="margin-top:15px; padding:12px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">BACK</button>
+    </div>
+</div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
+    
+    let isWaitingForFirstOne = false;
+    let isWaitingFullCycle = false;
+    let isRecordingNow = false;
+    let cycleCounter = 0;
+    let recordCounter = 0;
+
+    const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
+    const tracks = [
+        { name: 'ds_kick1.wav', defaultOn: [0, 4], volume: 0.9 },
+        { name: 'ds_snare1.wav', defaultOn: [8], volume: 0.8 },
+        { name: 'ds_hihat1.wav', defaultOn: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.6 },
+        { name: 'ds_hihat2.wav', defaultOn: [], volume: 0.6 },
+        { name: 'ds_clapsn1.wav', defaultOn: [], volume: 0.7 },
+        { name: 'ds_kick2.wav', defaultOn: [], volume: 0.9 }
+    ];
+
+    tracks.forEach(t => { t.steps = new Array(64).fill(false); t.defaultOn.forEach(idx => t.steps[idx] = true); t.buffer = null; t.bars = 1; });
+
+    function renderSequencer() {
+        const mainGrid = document.getElementById('main-grid');
+        mainGrid.innerHTML = '';
+        tracks.forEach((track, tIdx) => {
+            const lane = document.createElement('div');
+            lane.className = 'track-lane';
+            let barHtml = '';
+            for(let b=0; b < track.bars; b++) {
+                barHtml += `<div class="bar-row">
+                    <div class="playhead" id="ph-${tIdx}-bar-${b}"></div>
+                    ${Array.from({length: 16}).map((_, s) => `<div class="node ${track.steps[(b*16)+s]?'active':''}" onclick="tglNode(${tIdx},${(b*16)+s},this)"></div>`).join('')}
+                </div>`;
+            }
+            lane.innerHTML = `<div class="track-controls">
+                <div class="sample-name" id="name-${tIdx}" onclick="openModal(${tIdx})">${track.name}</div>
+                <input type="range" class="vol-slider-main" min="0" max="1" step="0.05" value="${track.volume}" oninput="updateVol(${tIdx}, this.value)">
+                <button class="bar-toggle" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
+            </div><div class="bars-container">${barHtml}</div>`;
+            mainGrid.appendChild(lane);
+        });
+    }
+
+    function renderModalLane() {
+        if(activeTrackIdx === null) return;
+        const track = tracks[activeTrackIdx];
+        const container = document.getElementById('modal-bars-container');
+        document.getElementById('modal-track-name').innerText = track.name.toUpperCase();
+        document.getElementById('modal-bar-label').innerText = `${track.bars} BAR SEQUENCE`;
+        container.innerHTML = '';
+        for(let b=0; b < track.bars; b++) {
+            const row = document.createElement('div'); row.className = 'bar-row';
+            // Added explicit ID and display block for the Modal Playhead
+            row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}" style="display:none;"></div>` + 
+                Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('');
+            container.appendChild(row);
+        }
+    }
+
+    function scheduler() {
+        while (nextStepTime < audioCtx.currentTime + 0.1) {
+            if (activeTrackIdx !== null) {
+                const laneMax = tracks[activeTrackIdx].bars * 16;
+                const laneRelative = currentStep % laneMax;
+
+                if (isWaitingForFirstOne && laneRelative === 0) {
+                    isWaitingForFirstOne = false;
+                    isWaitingFullCycle = true;
+                    cycleCounter = 0;
+                    updateRecBtnUI();
+                }
+
+                if (isWaitingFullCycle) {
+                    cycleCounter++;
+                    if (cycleCounter > laneMax) {
+                        isWaitingFullCycle = false;
+                        isRecordingNow = true;
+                        masterMuted = true;
+                        recordCounter = 0;
+                        updateRecBtnUI();
+                    }
+                }
+
+                if (isRecordingNow) {
+                    recordCounter++;
+                    if (recordCounter > laneMax) {
+                        isRecordingNow = false;
+                        masterMuted = false;
+                        updateRecBtnUI();
+                    }
+                }
+            }
+
+            if (!masterMuted) {
+                tracks.forEach((track) => {
+                    if (track.steps[currentStep % (track.bars * 16)]) {
+                        playSample(track.buffer, nextStepTime, track.volume);
+                    }
+                });
+            }
+            
+            nextStepTime += (60 / document.getElementById('tempo').value) / 4;
+            currentStep++; 
+        }
+        if (isPlaying) { requestAnimationFrame(updateUI); setTimeout(scheduler, 25); }
+    }
+
+    function updateUI() {
+        const step = currentStep - 1;
+        // Node width calculation
+        const nodeWidth = (document.querySelector('.node') || document.querySelector('.modal-node')).offsetWidth + 3;
+        
+        tracks.forEach((track, tIdx) => {
+            // Main Grid UI
+            for(let b=0; b < 4; b++) { 
+                const ph = document.getElementById(`ph-${tIdx}-bar-${b}`); 
+                if(ph) ph.style.display = 'none'; 
+            }
+            const laneStep = step % (track.bars * 16);
+            const currentBar = Math.floor(laneStep/16);
+            const mainPh = document.getElementById(`ph-${tIdx}-bar-${currentBar}`);
+            if (mainPh && isPlaying) { 
+                mainPh.style.display = 'block'; 
+                mainPh.style.transform = `translateX(${(laneStep%16)*nodeWidth}px)`; 
+            }
+
+            // Modal Grid UI (Ultimate Truth)
+            if (activeTrackIdx === tIdx) {
+                for(let b=0; b < 4; b++) {
+                    const mph = document.getElementById(`modal-ph-bar-${b}`);
+                    if (mph) mph.style.display = 'none';
+                }
+                const modalPh = document.getElementById(`modal-ph-bar-${currentBar}`);
+                if (modalPh && isPlaying) {
+                    modalPh.style.display = 'block';
+                    modalPh.style.transform = `translateX(${(laneStep%16)*nodeWidth}px)`;
+                }
+            }
+        });
+    }
+
+    document.getElementById('play-btn').onclick = () => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        isPlaying = !isPlaying;
+        if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
+        else { 
+            document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); 
+            isRecordingNow = false; isWaitingForFirstOne = false; isWaitingFullCycle = false; 
+            masterMuted = false; updateRecBtnUI();
+        }
+        document.getElementById('play-btn').innerText = isPlaying ? "STOP" : "PLAY";
+    };
+
+    document.getElementById('rec-action-btn').onclick = () => {
+        if (!isPlaying) return alert("Tap PLAY first!");
+        isWaitingForFirstOne = true;
+        updateRecBtnUI();
+    };
+
+    function updateRecBtnUI() {
+        const btn = document.getElementById('rec-action-btn');
+        if (isWaitingForFirstOne || isWaitingFullCycle) { btn.innerText = "WAITING..."; btn.className = "rec-btn waiting"; }
+        else if (isRecordingNow) { btn.innerText = "RECORDING!"; btn.className = "rec-btn recording"; }
+        else { btn.innerText = "● RECORD"; btn.className = "rec-btn"; }
+    }
+
+    function tglNode(t, s, el) { tracks[t].steps[s] = !tracks[t].steps[s]; el.classList.toggle('active'); }
+    function updateVol(i, val) { tracks[i].volume = val; }
+    function playSample(buffer, time, vol) {
+        if (!buffer) return;
+        const source = audioCtx.createBufferSource();
+        const gain = audioCtx.createGain();
+        source.buffer = buffer; 
+        gain.gain.value = vol * document.getElementById('master-vol').value; 
+        source.connect(gain); gain.connect(audioCtx.destination);
+        source.start(time);
+    }
+
+    document.getElementById('tempo').oninput = function() { document.getElementById('bpm-text').innerText = `${this.value} BPM`; };
+    function openModal(i) { activeTrackIdx = i; renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; }
+    function closeModal() { activeTrackIdx = null; document.getElementById('sample-modal').style.display = 'none'; }
+    function populateSampleList() {
+        const list = document.getElementById('modal-sample-list'); list.innerHTML = '';
+        sampleFiles.forEach(file => {
+            const item = document.createElement('div'); item.className = 'sample-item'; item.innerText = file;
+            item.onclick = () => { tracks[activeTrackIdx].name = file; renderSequencer(); renderModalLane(); loadSingleSample(activeTrackIdx); };
+            list.appendChild(item);
+        });
+    }
+    function cycleBars(i) { tracks[i].bars = [1, 2, 4][([1, 2, 4].indexOf(tracks[i].bars) + 1) % 3]; renderSequencer(); if(activeTrackIdx === i) renderModalLane(); }
+    document.getElementById('modal-bar-cycle').onclick = () => { if(activeTrackIdx !== null) cycleBars(activeTrackIdx); };
+    async function loadSingleSample(i) { try { const res = await fetch(`samples/${tracks[i].name}`); const buf = await res.arrayBuffer(); tracks[i].buffer = await audioCtx.decodeAudioData(buf); } catch (e) {} }
+    async function loadAll() { for (let i=0; i<tracks.length; i++) await loadSingleSample(i); }
+
+    renderSequencer();
+    loadAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mic Probe v1.0</title>
+    <style>
+        body { background: #001a35; color: #ffaa00; font-family: monospace; padding: 20px; }
+        #log { 
+            background: #000; border: 1px solid #444; padding: 10px; 
+            height: 300px; overflow-y: scroll; font-size: 12px; color: #00ff00;
+        }
+        button { 
+            width: 100%; padding: 20px; background: #ffaa00; border: none; 
+            font-weight: bold; margin-top: 10px; border-radius: 10px;
+        }
+        .error { color: #ff4444; }
+        .success { color: #ffff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h3>DUM-SAMPLER DIAGNOSTICS</h3>
+    <div id="log">--- System Ready ---<br></div>
+    
+    <button onclick="testMic()">STEP 1: REQUEST MIC</button>
+    <button onclick="testAudioContext()" style="background:#444; color:white;">STEP 2: TEST AUDIO CLOCK</button>
+
+    <script>
+        const logDiv = document.getElementById('log');
+
+        function print(msg, isError = false) {
+            const span = document.createElement('span');
+            span.className = isError ? 'error' : 'success';
+            span.innerHTML = `> ${msg}<br>`;
+            logDiv.appendChild(span);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function testMic() {
+            print("Initiating navigator.mediaDevices.getUserMedia...");
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                print("FATAL: getUserMedia is NOT defined in this browser.", true);
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                print("SUCCESS: Microphone access granted!");
+                print(`Stream active: ${stream.active}`);
+                
+                // Track tracks
+                const tracks = stream.getAudioTracks();
+                print(`Found ${tracks.length} audio tracks.`);
+                tracks.forEach(t => print(`Track: ${t.label}`));
+
+            } catch (err) {
+                print(`ERROR: ${err.name}`, true);
+                print(`MESSAGE: ${err.message}`, true);
+                if (window.location.protocol !== 'https:') {
+                    print("NOTE: Most browsers require HTTPS for microphone access!", true);
+                }
+            }
+        }
+
+        function testAudioContext() {
+            print("Testing AudioContext...");
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                print(`State: ${ctx.state}`);
+                if (ctx.state === 'suspended') {
+                    print("Context is SUSPENDED. This is normal on iOS until you tap.");
+                    ctx.resume().then(() => print("Context RESUMED successfully."));
+                }
+            } catch (e) {
+                print("AudioContext failed to initialize.", true);
+            }
+        }
+    </script>
+</body>
+</html>
