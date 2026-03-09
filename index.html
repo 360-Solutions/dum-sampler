@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.3</title>
+    <title>dum-Sampler v0.11.4</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -79,7 +79,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.3</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.4</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -127,37 +127,31 @@
     let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
     let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
     let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
-    let mediaRecorder, audioChunks = [], tempBuffer = null;
+    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
     const tracks = [
-        { name: 'ds_kick1.wav', steps: [0, 4], volume: 0.9, bars: 1 },
-        { name: 'ds_snare1.wav', steps: [8], volume: 0.8, bars: 1 },
-        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.6, bars: 1 },
-        { name: 'ds_hihat2.wav', steps: [], volume: 0.6, bars: 1 },
-        { name: 'ds_clapsn1.wav', steps: [], volume: 0.7, bars: 1 },
-        { name: 'ds_kick2.wav', steps: [], volume: 0.9, bars: 1 },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1 },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1 }
+        { name: 'ds_kick1.wav', steps: [0, 4], volume: 0.9, bars: 1, buffer: null },
+        { name: 'ds_snare1.wav', steps: [8], volume: 0.8, bars: 1, buffer: null },
+        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.6, bars: 1, buffer: null },
+        { name: 'ds_hihat2.wav', steps: [], volume: 0.6, bars: 1, buffer: null },
+        { name: 'ds_clapsn1.wav', steps: [], volume: 0.7, bars: 1, buffer: null },
+        { name: 'ds_kick2.wav', steps: [], volume: 0.9, bars: 1, buffer: null },
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, buffer: null },
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, buffer: null }
     ];
 
     tracks.forEach(t => { 
         let s = new Array(64).fill(false);
         if(t.steps) t.steps.forEach(idx => s[idx] = true);
-        t.steps = s; t.buffer = null; 
+        t.steps = s;
     });
 
-    // --- CRITICAL: RAW AUDIO CONSTRAINTS ---
     async function initMic() {
         if (mediaRecorder) return;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    echoCancellation: false, 
-                    autoGainControl: false, 
-                    noiseSuppression: false,
-                    latency: 0
-                } 
+                audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
             });
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
@@ -209,29 +203,29 @@
 
     function scheduler() {
         while (nextStepTime < audioCtx.currentTime + 0.1) {
-            const laneMax = activeTrackIdx !== null ? tracks[activeTrackIdx].bars * 16 : 64;
-            const laneRelative = currentStep % laneMax;
+            if (activeTrackIdx !== null) {
+                const laneMax = tracks[activeTrackIdx].bars * 16;
+                const laneRelative = currentStep % laneMax;
 
-            if (isWaitingForFirstOne && laneRelative === 0) {
-                isWaitingForFirstOne = false; isWaitingFullCycle = true; cycleCounter = 0; updateRecBtnUI();
-            }
-            if (isWaitingFullCycle) {
-                cycleCounter++;
-                if (cycleCounter > laneMax) {
-                    isWaitingFullCycle = false; isRecordingNow = true; masterMuted = true;
-                    recordCounter = 0; audioChunks = []; mediaRecorder.start(); updateRecBtnUI();
+                if (isWaitingForFirstOne && laneRelative === 0) {
+                    isWaitingForFirstOne = false; isWaitingFullCycle = true; cycleCounter = 0; updateRecBtnUI();
                 }
-            }
-            if (isRecordingNow) {
-                recordCounter++;
-                if (recordCounter > laneMax) {
-                    isRecordingNow = false; masterMuted = false; mediaRecorder.stop(); updateRecBtnUI();
+                if (isWaitingFullCycle) {
+                    cycleCounter++;
+                    if (cycleCounter > laneMax) {
+                        isWaitingFullCycle = false; isRecordingNow = true; masterMuted = true;
+                        recordCounter = 0; audioChunks = []; mediaRecorder.start(); updateRecBtnUI();
+                    }
                 }
-            }
-
-            // Logic for "Instant Playback" inside modal
-            if (isRecordingNow === false && activeTrackIdx !== null && tempBuffer && laneRelative === 0) {
-                 playSample(tempBuffer, nextStepTime, 1.0);
+                if (isRecordingNow) {
+                    recordCounter++;
+                    if (recordCounter > laneMax) {
+                        isRecordingNow = false; masterMuted = false; mediaRecorder.stop(); updateRecBtnUI();
+                    }
+                }
+                if (!isRecordingNow && tempBuffer && laneRelative === 0) {
+                     playSample(tempBuffer, nextStepTime, 1.0);
+                }
             }
 
             if (!masterMuted) {
@@ -249,7 +243,7 @@
 
     document.getElementById('play-btn').onclick = function() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        initMic(); // Trigger permission pop-up on first Play
+        initMic(); 
         isPlaying = !isPlaying;
         if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
         else { document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); masterMuted = false; updateRecBtnUI(); }
@@ -291,7 +285,7 @@
 
     function updateUI() {
         const step = currentStep - 1;
-        const nodes = document.querySelectorAll('.node, .modal-node');
+        const nodes = document.querySelectorAll('.node');
         if (!nodes.length) return;
         const nodeWidth = nodes[0].offsetWidth + 3;
         tracks.forEach((track, tIdx) => {
