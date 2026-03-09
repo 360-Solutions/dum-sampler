@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.2</title>
+    <title>dum-Sampler v0.11.3</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -17,42 +17,26 @@
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, sans-serif;
-            margin: 0; padding: 10px;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: -apple-system, sans-serif; margin: 0; padding: 10px;
+            user-select: none; -webkit-tap-highlight-color: transparent;
         }
 
         header { display: flex; justify-content: space-between; align-items: center; padding: 5px 0 10px 0; }
         .version-info { font-size: 10px; text-align: right; opacity: 0.8; }
 
         .transport {
-            background: var(--panel-color);
-            padding: 15px;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 15px;
+            background: var(--panel-color); padding: 15px; border-radius: 10px;
+            display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;
         }
 
         .transport-top { display: flex; align-items: center; gap: 15px; width: 100%; }
-
         #play-btn {
-            background: var(--accent-color);
-            border: none;
-            padding: 15px 30px;
-            font-weight: bold;
-            border-radius: 5px;
-            font-size: 14px;
-            color: #001a35;
-            cursor: pointer;
+            background: var(--accent-color); border: none; padding: 15px 30px;
+            font-weight: bold; border-radius: 5px; font-size: 14px; color: #001a35; cursor: pointer;
         }
 
         .sliders-group { flex-grow: 1; }
-        .slider-row { margin-bottom: 8px; }
         .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); margin-bottom: 2px; display: block; }
         input[type=range] { width: 100%; accent-color: var(--accent-color); height: 20px; }
 
@@ -60,18 +44,11 @@
         .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
 
         .sample-name {
-            background: var(--node-off);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            min-width: 85px;
-            color: #add8e6;
-            cursor: pointer;
+            background: var(--node-off); padding: 4px 8px; border-radius: 4px;
+            font-size: 10px; min-width: 85px; color: #add8e6; cursor: pointer;
         }
 
-        .vol-slider-main { flex-grow: 1; height: 18px; margin: 0; }
         .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 3px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
-
         .bar-row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; position: relative; margin-bottom: 3px; }
         .node { height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
         .node.active { background: var(--node-on); box-shadow: 0 0 8px var(--node-on); }
@@ -86,7 +63,9 @@
         .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 30px; border-radius: 40px; font-weight: bold; font-size: 13px; min-width: 120px; cursor: pointer; }
         .rec-btn.waiting { background: #ffa500; color: #000; }
         .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
-        .clear-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 10px; cursor: pointer; }
+        
+        .action-btn { background: #444; color: white; border: none; padding: 8px; border-radius: 5px; font-size: 10px; cursor: pointer; }
+        .commit-btn { background: #28a745; color: white; font-weight: bold; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
@@ -100,7 +79,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.2</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.3</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -133,9 +112,9 @@
         </div>
 
         <div class="modal-header-btns">
-            <button class="clear-btn" id="modal-clear-btn">CLEAR LANE</button>
-            <button class="bar-toggle" id="modal-bar-cycle">BARS</button>
+            <button class="action-btn" id="modal-clear-btn">DELETE</button>
             <button class="rec-btn" id="rec-action-btn">● RECORD</button>
+            <button class="action-btn commit-btn" id="modal-commit-btn">COMMIT</button>
         </div>
 
         <div class="sample-list" id="modal-sample-list"></div>
@@ -146,55 +125,49 @@
 <script>
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
-    
-    // Recording States
     let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
-    let cycleCounter = 0, recordCounter = 0;
-    let mediaRecorder, audioChunks = [];
-    let userSampleCount = 0;
+    let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
+    let mediaRecorder, audioChunks = [], tempBuffer = null;
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
     const tracks = [
-        { name: 'ds_kick1.wav', defaultOn: [0, 4], volume: 0.9 },
-        { name: 'ds_snare1.wav', defaultOn: [8], volume: 0.8 },
-        { name: 'ds_hihat1.wav', defaultOn: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.6 },
-        { name: 'ds_hihat2.wav', defaultOn: [], volume: 0.6 },
-        { name: 'ds_clapsn1.wav', defaultOn: [], volume: 0.7 },
-        { name: 'ds_kick2.wav', defaultOn: [], volume: 0.9 },
-        { name: 'EMPTY', defaultOn: [], volume: 0.8 },
-        { name: 'EMPTY', defaultOn: [], volume: 0.8 }
+        { name: 'ds_kick1.wav', steps: [0, 4], volume: 0.9, bars: 1 },
+        { name: 'ds_snare1.wav', steps: [8], volume: 0.8, bars: 1 },
+        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.6, bars: 1 },
+        { name: 'ds_hihat2.wav', steps: [], volume: 0.6, bars: 1 },
+        { name: 'ds_clapsn1.wav', steps: [], volume: 0.7, bars: 1 },
+        { name: 'ds_kick2.wav', steps: [], volume: 0.9, bars: 1 },
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1 },
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1 }
     ];
 
     tracks.forEach(t => { 
-        t.steps = new Array(64).fill(false); 
-        if(t.defaultOn) t.defaultOn.forEach(idx => t.steps[idx] = true); 
-        t.buffer = null; 
-        t.bars = 1; 
+        let s = new Array(64).fill(false);
+        if(t.steps) t.steps.forEach(idx => s[idx] = true);
+        t.steps = s; t.buffer = null; 
     });
 
-    // --- MIC ENGINE ---
+    // --- CRITICAL: RAW AUDIO CONSTRAINTS ---
     async function initMic() {
+        if (mediaRecorder) return;
         try {
-            // EchoCancellation: false helps prevent the 'ducking' volume issue on iOS
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
+                audio: { 
+                    echoCancellation: false, 
+                    autoGainControl: false, 
+                    noiseSuppression: false,
+                    latency: 0
+                } 
             });
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
-                const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                
-                userSampleCount++;
-                const newName = `USER_SAMPLE_${userSampleCount}`;
-                tracks[activeTrackIdx].buffer = decodedBuffer;
-                tracks[activeTrackIdx].name = newName;
-                
-                renderSequencer();
-                renderModalLane(); // Update modal immediately with new name
+                tempBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                document.getElementById('modal-track-name').innerText = "PREVIEW READY";
             };
-        } catch (err) { alert("Mic Error: " + err); }
+        } catch (err) { console.log("Mic error: " + err); }
     }
 
     function renderSequencer() {
@@ -211,8 +184,8 @@
                 </div>`;
             }
             lane.innerHTML = `<div class="track-controls">
-                <div class="sample-name" id="name-${tIdx}" onclick="openModal(${tIdx})">${track.name}</div>
-                <input type="range" class="vol-slider-main" min="0" max="1" step="0.05" value="${track.volume}" oninput="updateVol(${tIdx}, this.value)">
+                <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
+                <input type="range" min="0" max="1" step="0.05" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value">
                 <button class="bar-toggle" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
             </div><div class="bars-container">${barHtml}</div>`;
             mainGrid.appendChild(lane);
@@ -224,7 +197,7 @@
         const track = tracks[activeTrackIdx];
         const container = document.getElementById('modal-bars-container');
         document.getElementById('modal-track-name').innerText = track.name.toUpperCase();
-        document.getElementById('modal-bar-label').innerText = `FULL PRE-ROLL WAIT`;
+        document.getElementById('modal-bar-label').innerText = `${track.bars} BAR LOOP`;
         container.innerHTML = '';
         for(let b=0; b < track.bars; b++) {
             const row = document.createElement('div'); row.className = 'bar-row';
@@ -236,47 +209,34 @@
 
     function scheduler() {
         while (nextStepTime < audioCtx.currentTime + 0.1) {
-            const globalStep = currentStep % 64;
-            
-            if (activeTrackIdx !== null) {
-                const laneMax = tracks[activeTrackIdx].bars * 16;
-                const laneRelative = currentStep % laneMax;
+            const laneMax = activeTrackIdx !== null ? tracks[activeTrackIdx].bars * 16 : 64;
+            const laneRelative = currentStep % laneMax;
 
-                if (isWaitingForFirstOne && laneRelative === 0) {
-                    isWaitingForFirstOne = false;
-                    isWaitingFullCycle = true;
-                    cycleCounter = 0;
-                    updateRecBtnUI();
+            if (isWaitingForFirstOne && laneRelative === 0) {
+                isWaitingForFirstOne = false; isWaitingFullCycle = true; cycleCounter = 0; updateRecBtnUI();
+            }
+            if (isWaitingFullCycle) {
+                cycleCounter++;
+                if (cycleCounter > laneMax) {
+                    isWaitingFullCycle = false; isRecordingNow = true; masterMuted = true;
+                    recordCounter = 0; audioChunks = []; mediaRecorder.start(); updateRecBtnUI();
                 }
+            }
+            if (isRecordingNow) {
+                recordCounter++;
+                if (recordCounter > laneMax) {
+                    isRecordingNow = false; masterMuted = false; mediaRecorder.stop(); updateRecBtnUI();
+                }
+            }
 
-                if (isWaitingFullCycle) {
-                    cycleCounter++;
-                    if (cycleCounter > laneMax) {
-                        isWaitingFullCycle = false;
-                        isRecordingNow = true;
-                        masterMuted = true;
-                        recordCounter = 0;
-                        audioChunks = [];
-                        if (mediaRecorder) mediaRecorder.start();
-                        updateRecBtnUI();
-                    }
-                }
-
-                if (isRecordingNow) {
-                    recordCounter++;
-                    if (recordCounter > laneMax) {
-                        isRecordingNow = false;
-                        masterMuted = false;
-                        if (mediaRecorder) mediaRecorder.stop();
-                        updateRecBtnUI();
-                    }
-                }
+            // Logic for "Instant Playback" inside modal
+            if (isRecordingNow === false && activeTrackIdx !== null && tempBuffer && laneRelative === 0) {
+                 playSample(tempBuffer, nextStepTime, 1.0);
             }
 
             if (!masterMuted) {
                 tracks.forEach((track) => {
                     if (track.steps[currentStep % (track.bars * 16)]) {
-                        // Offset for latency could be subtracted from nextStepTime
                         playSample(track.buffer, nextStepTime, track.volume);
                     }
                 });
@@ -287,20 +247,29 @@
         if (isPlaying) { requestAnimationFrame(updateUI); setTimeout(scheduler, 25); }
     }
 
-    document.getElementById('rec-action-btn').onclick = () => {
-        if (!isPlaying) return alert("Tap PLAY first!");
-        if (!mediaRecorder) initMic(); 
-        isWaitingForFirstOne = true;
-        updateRecBtnUI();
+    document.getElementById('play-btn').onclick = function() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        initMic(); // Trigger permission pop-up on first Play
+        isPlaying = !isPlaying;
+        if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
+        else { document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); masterMuted = false; updateRecBtnUI(); }
+        this.innerText = isPlaying ? "STOP" : "PLAY";
+    };
+
+    document.getElementById('rec-action-btn').onclick = () => { isWaitingForFirstOne = true; updateRecBtnUI(); };
+    
+    document.getElementById('modal-commit-btn').onclick = () => {
+        if (!tempBuffer) return;
+        userSampleCount++;
+        tracks[activeTrackIdx].buffer = tempBuffer;
+        tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
+        tempBuffer = null;
+        renderSequencer(); closeModal();
     };
 
     document.getElementById('modal-clear-btn').onclick = () => {
-        if(activeTrackIdx === null) return;
-        tracks[activeTrackIdx].buffer = null;
-        tracks[activeTrackIdx].name = "EMPTY";
-        tracks[activeTrackIdx].steps = new Array(64).fill(false);
-        renderSequencer();
-        renderModalLane();
+        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
+        tracks[activeTrackIdx].steps.fill(false); renderSequencer(); renderModalLane();
     };
 
     function updateRecBtnUI() {
@@ -310,8 +279,6 @@
         else { btn.innerText = "● RECORD"; btn.className = "rec-btn"; }
     }
 
-    function tglNode(t, s, el) { tracks[t].steps[s] = !tracks[t].steps[s]; el.classList.toggle('active'); }
-    function updateVol(i, val) { tracks[i].volume = val; }
     function playSample(buffer, time, vol) {
         if (!buffer) return;
         const source = audioCtx.createBufferSource();
@@ -319,52 +286,30 @@
         source.buffer = buffer; 
         gain.gain.value = vol * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(audioCtx.destination);
-        
-        // --- LATENCY COMPENSATION ---
-        // We start the sample slightly 'late' to match the record lag
-        const latencyComp = 0.050; // 50ms compensation
-        source.start(time + latencyComp);
+        source.start(time);
     }
 
     function updateUI() {
         const step = currentStep - 1;
         const nodes = document.querySelectorAll('.node, .modal-node');
-        if (nodes.length === 0) return;
+        if (!nodes.length) return;
         const nodeWidth = nodes[0].offsetWidth + 3;
-        
         tracks.forEach((track, tIdx) => {
-            for(let b=0; b < 4; b++) { 
-                const ph = document.getElementById(`ph-${tIdx}-bar-${b}`); 
-                if(ph) ph.style.display = 'none'; 
-            }
             const laneStep = step % (track.bars * 16);
-            const currentBar = Math.floor(laneStep/16);
-            const mainPh = document.getElementById(`ph-${tIdx}-bar-${currentBar}`);
+            for(let b=0; b<4; b++) { 
+                const ph = document.getElementById(`ph-${tIdx}-bar-${b}`); if(ph) ph.style.display = 'none'; 
+                const mph = document.getElementById(`modal-ph-bar-${b}`); if(mph) mph.style.display = 'none';
+            }
+            const mainPh = document.getElementById(`ph-${tIdx}-bar-${Math.floor(laneStep/16)}`);
             if (mainPh && isPlaying) { mainPh.style.display = 'block'; mainPh.style.transform = `translateX(${(laneStep%16)*nodeWidth}px)`; }
-
             if (activeTrackIdx === tIdx) {
-                for(let b=0; b < 4; b++) {
-                    const mph = document.getElementById(`modal-ph-bar-${b}`);
-                    if (mph) mph.style.display = 'none';
-                }
-                const modalPh = document.getElementById(`modal-ph-bar-${currentBar}`);
+                const modalPh = document.getElementById(`modal-ph-bar-${Math.floor(laneStep/16)}`);
                 if (modalPh && isPlaying) { modalPh.style.display = 'block'; modalPh.style.transform = `translateX(${(laneStep%16)*nodeWidth}px)`; }
             }
         });
     }
 
-    document.getElementById('play-btn').onclick = () => {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        isPlaying = !isPlaying;
-        if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
-        else { 
-            document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); 
-            isRecordingNow = false; isWaitingForFirstOne = false; isWaitingFullCycle = false; 
-            masterMuted = false; updateRecBtnUI();
-        }
-        document.getElementById('play-btn').innerText = isPlaying ? "STOP" : "PLAY";
-    };
-
+    function tglNode(t, s, el) { tracks[t].steps[s] = !tracks[t].steps[s]; el.classList.toggle('active'); }
     document.getElementById('tempo').oninput = function() { document.getElementById('bpm-text').innerText = `${this.value} BPM`; };
     function openModal(i) { activeTrackIdx = i; renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; }
     function closeModal() { activeTrackIdx = null; document.getElementById('sample-modal').style.display = 'none'; }
