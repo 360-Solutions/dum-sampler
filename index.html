@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.12.1</title>
+    <title>dum-Sampler v0.12.2</title>
     <style>
         :root {
             --bg-color: #001a35;
             --panel-color: #002d5c;
-            --accent-color: #ffaa00;
+            --accent-color: #cccccc;
             --text-color: #ffffff;
             --node-off: #004080;
-            --node-on: #ffaa00;
+            --node-on: #cccccc;
             --rec-red: #ff0000;
             --the-one: #ff3333;
         }
@@ -52,7 +52,7 @@
 
         .controls-right { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
         .action-sm-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
-        .action-sm-btn.active-choke { color: #ffaa00; border-color: #ffaa00; }
+        .action-sm-btn.active-choke { color: #ffffff; border-color: #ffffff; }
         
         .nudge-panel { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-bottom: 6px; display: none; }
         
@@ -70,7 +70,7 @@
         .modal-header-btns { display: flex; justify-content: space-around; align-items: center; margin-bottom: 12px; }
 
         .rec-btn { background: var(--rec-red); color: white; border: none; padding: 15px 25px; border-radius: 40px; font-weight: 600; font-size: 13px; min-width: 120px; cursor: pointer; }
-        .rec-btn.waiting { background: #ffa500; color: #000; }
+        .rec-btn.waiting { background: #aaaaaa; color: #000; }
         .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
         
         .action-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
@@ -88,7 +88,7 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.1</span></div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.2</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -114,7 +114,7 @@
     <div class="modal-content">
         <div class="rec-visualizer-zone">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span id="modal-track-name" style="font-size:11px; color:var(--accent-color);">READY</span>
+                <span id="modal-track-name" style="font-size:11px; color:var(--accent-color); font-weight:bold;">READY</span>
                 <button class="action-sm-btn" id="modal-bar-cycle" style="min-width: 60px; padding:6px;">1 BAR</button>
             </div>
             <div id="modal-bars-container"></div>
@@ -135,7 +135,7 @@
         </div>
 
         <div class="sample-list" id="modal-sample-list"></div>
-        <button onclick="closeModal()" style="margin-top:10px; padding:15px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">BACK TO GRID</button>
+        <button onclick="closeModal()" style="margin-top:10px; padding:15px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">BACK TO GRID</button>
     </div>
 </div>
 
@@ -147,25 +147,26 @@
         { name: 'ds_hihat2.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
         { name: 'ds_clapsn1.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
         { name: 'ds_kick2.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null }
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null }
     ];
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
     const preFetchedBuffers = {};
+
+    let audioCtx = null;
+    let masterGain = null;
+    let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
+    let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
+    let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
+    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
+    let targetBarLength = 16;
 
     tracks.forEach(t => { 
         let s = new Array(64).fill(false);
         if(t.steps) t.steps.forEach(idx => s[idx] = true);
         t.steps = s;
     });
-
-    let audioCtx = null;
-    let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
-    let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
-    let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
-    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
-    let targetBarLength = 16;
 
     function renderSequencer() {
         const mainGrid = document.getElementById('main-grid');
@@ -235,7 +236,11 @@
     }
 
     async function initAudioContextAndDecode() {
-        if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        if (!audioCtx) { 
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+        }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         for (let i = 0; i < tracks.length; i++) {
             if (tracks[i].name !== 'EMPTY' && preFetchedBuffers[tracks[i].name] && !tracks[i].buffer) {
@@ -297,6 +302,10 @@
                     cycleCounter++;
                     if (cycleCounter >= targetBarLength && laneRelative === targetBarLength - 1) {
                         isWaitingFullCycle = false; isRecordingNow = true; masterMuted = true;
+                        
+                        // Hardware-level volume chop exactly on the "One"
+                        masterGain.gain.setValueAtTime(0, nextStepTime);
+                        
                         recordCounter = 0; audioChunks = []; 
                         setTimeout(() => mediaRecorder.start(), 0); updateRecBtnUI();
                     }
@@ -305,6 +314,10 @@
                     recordCounter++;
                     if (recordCounter >= targetBarLength && laneRelative === targetBarLength - 1) {
                         isRecordingNow = false; masterMuted = false; 
+                        
+                        // Restore master volume exactly after recording ends
+                        masterGain.gain.setValueAtTime(1, nextStepTime);
+                        
                         setTimeout(() => mediaRecorder.stop(), 0); updateRecBtnUI();
                     }
                 }
@@ -314,6 +327,7 @@
                 }
             }
 
+            // Even if muted, we let the scheduler run. The MasterGain being 0 handles the silence mathematically.
             if (!masterMuted) {
                 tracks.forEach((track) => {
                     if (track.steps[currentStep % (track.bars * 16)]) { 
@@ -327,14 +341,15 @@
         if (isPlaying) { setTimeout(scheduler, 25); requestAnimationFrame(updateUI); }
     }
 
-    // Extended with track object to support choking playback
     function playSample(buffer, time, vol, nudgeMs = 0, trackObj = null) {
         if (!buffer || !audioCtx) return;
         const source = audioCtx.createBufferSource();
         const gain = audioCtx.createGain();
         source.buffer = buffer; 
         gain.gain.value = vol * document.getElementById('master-vol').value; 
-        source.connect(gain); gain.connect(audioCtx.destination);
+        
+        // Route audio through the Master Kill Switch
+        source.connect(gain); gain.connect(masterGain);
         
         let startTime = time;
         let offsetInFile = 0;
@@ -345,10 +360,9 @@
             startTime += (nudgeMs / 1000);
         }
         
-        // CHOKE LOGIC: Cut off the last triggered sample on this lane instantly
         if (trackObj && trackObj.choke) {
             if (trackObj.lastSource) {
-                try { trackObj.lastSource.stop(startTime); } catch (e) { /* Ignore if naturally ended */ }
+                try { trackObj.lastSource.stop(startTime); } catch (e) {}
             }
             trackObj.lastSource = source;
         }
@@ -395,7 +409,9 @@
             currentStep = 0; nextStepTime = audioCtx.currentTime + 0.1; scheduler(); 
         } else { 
             document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); 
-            masterMuted = false; updateRecBtnUI(); 
+            masterMuted = false;
+            if(masterGain) masterGain.gain.setValueAtTime(1, audioCtx.currentTime);
+            updateRecBtnUI(); 
         }
         this.innerText = isPlaying ? "STOP" : "PLAY";
     };
@@ -411,18 +427,19 @@
         tracks[activeTrackIdx].buffer = tempBuffer;
         tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
         
-        // Auto-apply the -200ms latency compensation for new mic recordings
-        tracks[activeTrackIdx].nudge = -200; 
-        
         tempBuffer = null;
         renderSequencer(); closeModal();
     };
 
     document.getElementById('modal-clear-btn').onclick = () => {
         tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
-        tracks[activeTrackIdx].steps.fill(false); tracks[activeTrackIdx].nudge = 0; 
-        document.getElementById('modal-nudge').value = 0;
-        document.getElementById('modal-nudge-val').innerText = '0ms';
+        tracks[activeTrackIdx].steps.fill(false); 
+        
+        // Resetting to the default -200ms when cleared
+        tracks[activeTrackIdx].nudge = -200; 
+        document.getElementById('modal-nudge').value = -200;
+        document.getElementById('modal-nudge-val').innerText = '-200ms';
+        
         renderSequencer(); renderModalLane();
     };
 
@@ -450,8 +467,11 @@
     
     function openModal(i) { 
         activeTrackIdx = i; 
+        
+        // Modal inherently pulls the track's current value (which defaults to -200 for empty tracks)
         document.getElementById('modal-nudge').value = tracks[i].nudge || 0;
         document.getElementById('modal-nudge-val').innerText = (tracks[i].nudge || 0) + 'ms';
+        
         renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; 
     }
     
@@ -467,9 +487,12 @@
             const item = document.createElement('div'); item.className = 'sample-item'; item.innerText = file;
             item.onclick = () => { 
                 tracks[activeTrackIdx].name = file; 
+                
+                // If it's a preloaded file, snap back to 0ms
                 tracks[activeTrackIdx].nudge = 0;
                 document.getElementById('modal-nudge').value = 0;
                 document.getElementById('modal-nudge-val').innerText = '0ms';
+                
                 if(preFetchedBuffers[file]) {
                     const bufferCopy = preFetchedBuffers[file].slice(0);
                     audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[activeTrackIdx].buffer = decoded; });
