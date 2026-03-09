@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.9</title>
+    <title>dum-Sampler v0.12.0</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -16,7 +16,6 @@
             --the-one: #ff3333;
         }
 
-        /* touch-action: manipulation prevents the iOS double-tap to zoom behavior */
         body {
             background-color: var(--bg-color); color: var(--text-color);
             font-family: -apple-system, sans-serif; margin: 0; padding: 10px;
@@ -48,16 +47,18 @@
         .sample-name {
             background: var(--node-off); padding: 4px 8px; border-radius: 4px;
             font-size: 10px; min-width: 85px; color: #add8e6; cursor: pointer;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;
         }
 
-        .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
+        .action-sm-btn { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+        
+        .nudge-panel { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-bottom: 6px; display: none; }
+        
         .bar-row { display: flex; width: 100%; justify-content: space-between; position: relative; margin-bottom: 3px; height: 20px; }
         .node-wrapper { position: relative; width: 100%; display: flex; justify-content: space-between; }
         .node { width: 6%; height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
         .node.active { background: var(--node-on); box-shadow: 0 0 8px var(--node-on); }
         
-        /* Playhead forced to span height and stay above nodes */
         .playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: #fff; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 10; display: none; height: 100%; margin-left: 1px;}
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center; }
@@ -85,7 +86,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.9</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.0</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -112,7 +113,7 @@
         <div class="rec-visualizer-zone">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span id="modal-track-name" style="font-size:11px; color:var(--accent-color); font-weight:bold;">READY</span>
-                <button class="bar-toggle" id="modal-bar-cycle" style="min-width: 60px; padding:6px;">1 BAR</button>
+                <button class="action-sm-btn" id="modal-bar-cycle" style="min-width: 60px; padding:6px;">1 BAR</button>
             </div>
             <div id="modal-bars-container"></div>
         </div>
@@ -171,6 +172,7 @@
         tracks.forEach((track, tIdx) => {
             const lane = document.createElement('div');
             lane.className = 'track-lane';
+            
             let barHtml = '';
             for(let b=0; b < track.bars; b++) {
                 barHtml += `<div class="bar-row">
@@ -180,13 +182,37 @@
                     </div>
                 </div>`;
             }
-            lane.innerHTML = `<div class="track-controls">
+            
+            lane.innerHTML = `
+            <div class="track-controls">
                 <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
-                <input type="range" min="0" max="3" step="0.1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:40%;">
-                <button class="bar-toggle" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
-            </div><div class="bars-container">${barHtml}</div>`;
+                <input type="range" min="0" max="3" step="0.1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:35%;">
+                <div style="display:flex; gap:4px;">
+                    <button class="action-sm-btn" onclick="toggleNudgePanel(${tIdx})">SYNC</button>
+                    <button class="action-sm-btn" onclick="cycleBars(${tIdx})">${track.bars} BAR</button>
+                </div>
+            </div>
+            <div class="nudge-panel" id="nudge-panel-${tIdx}">
+                <span class="slider-label" style="display:flex; justify-content:space-between;">
+                    <span>Track Nudge</span>
+                    <span id="lane-nudge-val-${tIdx}" style="color:#fff;">${track.nudge}ms</span>
+                </span>
+                <input type="range" min="-250" max="250" value="${track.nudge}" step="5" oninput="updateLaneNudge(${tIdx}, this.value)">
+            </div>
+            <div class="bars-container">${barHtml}</div>`;
+            
             mainGrid.appendChild(lane);
         });
+    }
+
+    function toggleNudgePanel(tIdx) {
+        const panel = document.getElementById(`nudge-panel-${tIdx}`);
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function updateLaneNudge(tIdx, val) {
+        tracks[tIdx].nudge = parseInt(val);
+        document.getElementById(`lane-nudge-val-${tIdx}`).innerText = val + 'ms';
     }
 
     async function preFetchAll() {
@@ -304,12 +330,9 @@
         let startTime = time;
         let offsetInFile = 0;
         
-        // This is the true latency fix. 
         if (nudgeMs < 0) {
-            // Negative nudge means we recorded late. Start exactly on time, but skip the first X ms of the file.
             offsetInFile = Math.abs(nudgeMs) / 1000;
         } else if (nudgeMs > 0) {
-            // Positive nudge delays playback intentionally.
             startTime += (nudgeMs / 1000);
         }
         
@@ -319,24 +342,34 @@
     function updateUI() {
         const step = currentStep - 1;
         
+        // Loop 1: Handle main grid playheads for all tracks
         tracks.forEach((track, tIdx) => {
             const laneStep = step % (track.bars * 16);
             for(let b=0; b<4; b++) { 
-                const ph = document.getElementById(`ph-${tIdx}-bar-${b}`); if(ph) ph.style.display = 'none'; 
-                const mph = document.getElementById(`modal-ph-bar-${b}`); if(mph) mph.style.display = 'none';
+                const ph = document.getElementById(`ph-${tIdx}-bar-${b}`); 
+                if(ph) ph.style.display = 'none'; 
             }
             
             const mainPh = document.getElementById(`ph-${tIdx}-bar-${Math.floor(laneStep/16)}`);
-            if (mainPh && isPlaying) { mainPh.style.display = 'block'; mainPh.style.left = `${(laneStep%16) * 6.25}%`; }
-            
-            if (activeTrackIdx === tIdx) {
-                const modalPh = document.getElementById(`modal-ph-bar-${Math.floor(laneStep/16)}`);
-                if (modalPh && isPlaying) { 
-                    modalPh.style.display = 'block'; 
-                    modalPh.style.left = `${(laneStep%16) * 6.25}%`; 
-                }
+            if (mainPh && isPlaying) { 
+                mainPh.style.display = 'block'; 
+                mainPh.style.left = `${(laneStep%16) * 6.25}%`; 
             }
         });
+
+        // Loop 2: Handle modal playhead SEPARATELY so it isn't overwritten
+        if (activeTrackIdx !== null && isPlaying) {
+            const laneStep = step % (tracks[activeTrackIdx].bars * 16);
+            for(let b=0; b<4; b++) {
+                const mph = document.getElementById(`modal-ph-bar-${b}`);
+                if (mph) mph.style.display = 'none';
+            }
+            const activeMph = document.getElementById(`modal-ph-bar-${Math.floor(laneStep/16)}`);
+            if (activeMph) {
+                activeMph.style.display = 'block';
+                activeMph.style.left = `${(laneStep%16) * 6.25}%`;
+            }
+        }
     }
 
     document.getElementById('play-btn').onclick = async function() {
@@ -382,6 +415,9 @@
         if(activeTrackIdx !== null) {
             tracks[activeTrackIdx].nudge = parseInt(this.value);
             document.getElementById('modal-nudge-val').innerText = this.value + 'ms';
+            // Sync the main grid display if panel is open
+            const mainNudgeDisplay = document.getElementById(`lane-nudge-val-${activeTrackIdx}`);
+            if(mainNudgeDisplay) mainNudgeDisplay.innerText = this.value + 'ms';
         }
     };
 
@@ -401,7 +437,12 @@
         renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; 
     }
     
-    function closeModal() { activeTrackIdx = null; document.getElementById('sample-modal').style.display = 'none'; }
+    function closeModal() { 
+        // Sync any modal changes back to main UI
+        renderSequencer();
+        activeTrackIdx = null; 
+        document.getElementById('sample-modal').style.display = 'none'; 
+    }
     
     function populateSampleList() {
         const list = document.getElementById('modal-sample-list'); list.innerHTML = '';
