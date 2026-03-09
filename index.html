@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.8</title>
+    <title>dum-Sampler v0.11.9</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -16,10 +16,12 @@
             --the-one: #ff3333;
         }
 
+        /* touch-action: manipulation prevents the iOS double-tap to zoom behavior */
         body {
             background-color: var(--bg-color); color: var(--text-color);
             font-family: -apple-system, sans-serif; margin: 0; padding: 10px;
             user-select: none; -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation; 
         }
 
         header { display: flex; justify-content: space-between; align-items: center; padding: 5px 0 10px 0; }
@@ -37,13 +39,8 @@
         }
 
         .sliders-group { flex-grow: 1; display: flex; flex-direction: column; gap: 6px;}
-        .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); display: block; }
-        input[type=range] { width: 100%; accent-color: var(--accent-color); height: 16px; margin:0;}
-
-        .nudge-controls { display: flex; align-items: center; justify-content: space-between; background: #001a35; padding: 4px 8px; border-radius: 4px; }
-        .nudge-btn { background: #444; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
-        .nudge-btn:active { background: var(--accent-color); color: #000; }
-        .nudge-display { font-family: monospace; font-size: 12px; color: #add8e6; width: 40px; text-align: center; }
+        .slider-label { font-size: 9px; text-transform: uppercase; color: var(--accent-color); display: block; margin-bottom: 2px;}
+        input[type=range] { width: 100%; accent-color: var(--accent-color); height: 20px; margin:0; }
 
         .track-lane { background: rgba(0,0,0,0.2); margin-bottom: 8px; border-radius: 8px; padding: 6px; }
         .track-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; }
@@ -55,12 +52,13 @@
         }
 
         .bar-toggle { background: #2a2a2a; border: 1px solid #444; color: #ccc; font-size: 9px; padding: 4px 6px; border-radius: 4px; min-width: 42px; cursor: pointer; }
-        .bar-row { display: flex; width: 100%; justify-content: space-between; position: relative; margin-bottom: 3px; }
+        .bar-row { display: flex; width: 100%; justify-content: space-between; position: relative; margin-bottom: 3px; height: 20px; }
         .node-wrapper { position: relative; width: 100%; display: flex; justify-content: space-between; }
         .node { width: 6%; height: 20px; background: var(--node-off); border-radius: 2px; cursor: pointer; }
         .node.active { background: var(--node-on); box-shadow: 0 0 8px var(--node-on); }
         
-        .playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: #fff; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 5; display: none; margin-left: 2px;}
+        /* Playhead forced to span height and stay above nodes */
+        .playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: #fff; box-shadow: 0 0 6px #fff; pointer-events: none; z-index: 10; display: none; height: 100%; margin-left: 1px;}
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: var(--panel-color); width: 90%; max-height: 92%; padding: 15px; border-radius: 12px; border: 2px solid var(--accent-color); display: flex; flex-direction: column; }
@@ -80,14 +78,14 @@
         .sample-list { overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 5px; flex-grow: 1; }
         .sample-item { padding: 12px; border-bottom: 1px solid #1a4a7a; font-size: 14px; color: #add8e6; cursor: pointer; }
         
-        .modal-node { width: 6%; height: 16px; background: #003366; border-radius: 1px; }
+        .modal-node { width: 6%; height: 20px; background: #003366; border-radius: 1px; }
         .modal-node.the-only-one { background: var(--the-one) !important; box-shadow: 0 0 10px var(--the-one); }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.8</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.9</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -105,14 +103,6 @@
             </div>
         </div>
     </div>
-    <div class="nudge-controls">
-        <span class="slider-label" style="color:#add8e6; margin:0;">Global Latency Comp</span>
-        <div style="display:flex; gap:5px; align-items:center;">
-            <button class="nudge-btn" onclick="adjGlobalNudge(-5)">-5ms</button>
-            <span class="nudge-display" id="global-nudge-val">0ms</span>
-            <button class="nudge-btn" onclick="adjGlobalNudge(5)">+5ms</button>
-        </div>
-    </div>
 </div>
 
 <div id="main-grid"></div>
@@ -127,13 +117,12 @@
             <div id="modal-bars-container"></div>
         </div>
         
-        <div class="nudge-controls" style="margin-bottom: 15px; background: rgba(0,0,0,0.5);">
-            <span class="slider-label" style="color:#add8e6; margin:0;">Track Start Nudge</span>
-            <div style="display:flex; gap:5px; align-items:center;">
-                <button class="nudge-btn" onclick="adjTrackNudge(-5)">-5ms</button>
-                <span class="nudge-display" id="modal-nudge-val">0ms</span>
-                <button class="nudge-btn" onclick="adjTrackNudge(5)">+5ms</button>
-            </div>
+        <div style="margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;">
+            <span class="slider-label" style="display:flex; justify-content:space-between;">
+                <span>Start Point Nudge (Latency)</span>
+                <span id="modal-nudge-val" style="color:#fff;">0ms</span>
+            </span>
+            <input type="range" id="modal-nudge" min="-250" max="250" value="0" step="5">
         </div>
 
         <div class="modal-header-btns">
@@ -174,19 +163,6 @@
     let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
     let mediaRecorder = null, audioChunks = [], tempBuffer = null;
     let targetBarLength = 16;
-    let globalNudge = 0;
-
-    function adjGlobalNudge(amt) {
-        globalNudge += amt;
-        document.getElementById('global-nudge-val').innerText = globalNudge + 'ms';
-    }
-
-    function adjTrackNudge(amt) {
-        if(activeTrackIdx !== null) {
-            tracks[activeTrackIdx].nudge += amt;
-            document.getElementById('modal-nudge-val').innerText = tracks[activeTrackIdx].nudge + 'ms';
-        }
-    }
 
     function renderSequencer() {
         const mainGrid = document.getElementById('main-grid');
@@ -213,25 +189,13 @@
         });
     }
 
-    // Synthesizes a drum hit if the file is missing
-    function generateFallbackBuffer() {
-        if (!audioCtx) return null;
-        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < data.length; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.02));
-        }
-        return buffer;
-    }
-
     async function preFetchAll() {
         for (let t of tracks) {
             if (t.name !== 'EMPTY' && !preFetchedBuffers[t.name]) {
                 try {
                     const res = await fetch(`samples/${t.name}`);
                     if(res.ok) preFetchedBuffers[t.name] = await res.arrayBuffer();
-                    else console.warn("Fetch failed, will use fallback for", t.name);
-                } catch (e) { console.warn("Offline, will use fallback for", t.name); }
+                } catch (e) { console.warn("Missing file or offline:", t.name); }
             }
         }
     }
@@ -240,20 +204,13 @@
         if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         for (let i = 0; i < tracks.length; i++) {
-            if (tracks[i].name !== 'EMPTY' && !tracks[i].buffer) {
-                if (preFetchedBuffers[tracks[i].name]) {
-                    const bufferCopy = preFetchedBuffers[tracks[i].name].slice(0);
-                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[i].buffer = decoded; }, () => {
-                        tracks[i].buffer = generateFallbackBuffer(); // Fallback on decode error
-                    });
-                } else {
-                    tracks[i].buffer = generateFallbackBuffer(); // Fallback on missing file
-                }
+            if (tracks[i].name !== 'EMPTY' && preFetchedBuffers[tracks[i].name] && !tracks[i].buffer) {
+                const bufferCopy = preFetchedBuffers[tracks[i].name].slice(0);
+                audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[i].buffer = decoded; });
             }
         }
     }
 
-    // AUDIO NORMALIZATION ENGINE
     function normalizeBuffer(buffer) {
         let maxPeak = 0;
         for (let c = 0; c < buffer.numberOfChannels; c++) {
@@ -263,7 +220,7 @@
             }
         }
         if (maxPeak > 0 && maxPeak < 1.0) {
-            const multiplier = 1.0 / maxPeak; // Math to bring peak to 0dB
+            const multiplier = 1.0 / maxPeak; 
             for (let c = 0; c < buffer.numberOfChannels; c++) {
                 const data = buffer.getChannelData(c);
                 for (let i = 0; i < data.length; i++) {
@@ -286,7 +243,7 @@
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 audioCtx.decodeAudioData(arrayBuffer, (decoded) => {
-                    tempBuffer = normalizeBuffer(decoded); // BOOST VOLUME HERE
+                    tempBuffer = normalizeBuffer(decoded);
                     document.getElementById('modal-track-name').innerText = "PREVIEW READY";
                 });
             };
@@ -336,7 +293,7 @@
         if (isPlaying) { setTimeout(scheduler, 25); requestAnimationFrame(updateUI); }
     }
 
-    function playSample(buffer, time, vol, localNudgeMs = 0) {
+    function playSample(buffer, time, vol, nudgeMs = 0) {
         if (!buffer || !audioCtx) return;
         const source = audioCtx.createBufferSource();
         const gain = audioCtx.createGain();
@@ -344,13 +301,19 @@
         gain.gain.value = vol * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(audioCtx.destination);
         
-        let totalNudge = globalNudge + localNudgeMs;
-        let startTime = time + (totalNudge / 1000); // Shifting schedule time natively
+        let startTime = time;
+        let offsetInFile = 0;
         
-        // Prevent crashing if a massive negative nudge puts scheduling in the past
-        if (startTime < audioCtx.currentTime) { startTime = audioCtx.currentTime; }
+        // This is the true latency fix. 
+        if (nudgeMs < 0) {
+            // Negative nudge means we recorded late. Start exactly on time, but skip the first X ms of the file.
+            offsetInFile = Math.abs(nudgeMs) / 1000;
+        } else if (nudgeMs > 0) {
+            // Positive nudge delays playback intentionally.
+            startTime += (nudgeMs / 1000);
+        }
         
-        source.start(startTime);
+        source.start(startTime, offsetInFile);
     }
 
     function updateUI() {
@@ -363,11 +326,9 @@
                 const mph = document.getElementById(`modal-ph-bar-${b}`); if(mph) mph.style.display = 'none';
             }
             
-            // Percentage based positioning for main grid
             const mainPh = document.getElementById(`ph-${tIdx}-bar-${Math.floor(laneStep/16)}`);
             if (mainPh && isPlaying) { mainPh.style.display = 'block'; mainPh.style.left = `${(laneStep%16) * 6.25}%`; }
             
-            // Percentage based positioning for modal grid
             if (activeTrackIdx === tIdx) {
                 const modalPh = document.getElementById(`modal-ph-bar-${Math.floor(laneStep/16)}`);
                 if (modalPh && isPlaying) { 
@@ -406,14 +367,22 @@
     };
 
     document.getElementById('modal-clear-btn').onclick = () => {
-        tempBuffer = null; tracks[activeTrackIdx].buffer = generateFallbackBuffer(); tracks[activeTrackIdx].name = "EMPTY";
+        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
         tracks[activeTrackIdx].steps.fill(false); tracks[activeTrackIdx].nudge = 0; 
+        document.getElementById('modal-nudge').value = 0;
         document.getElementById('modal-nudge-val').innerText = '0ms';
         renderSequencer(); renderModalLane();
     };
 
     document.getElementById('modal-bar-cycle').onclick = () => {
         if(activeTrackIdx !== null) cycleBars(activeTrackIdx);
+    };
+
+    document.getElementById('modal-nudge').oninput = function() {
+        if(activeTrackIdx !== null) {
+            tracks[activeTrackIdx].nudge = parseInt(this.value);
+            document.getElementById('modal-nudge-val').innerText = this.value + 'ms';
+        }
     };
 
     function updateRecBtnUI() {
@@ -427,6 +396,7 @@
     
     function openModal(i) { 
         activeTrackIdx = i; 
+        document.getElementById('modal-nudge').value = tracks[i].nudge || 0;
         document.getElementById('modal-nudge-val').innerText = (tracks[i].nudge || 0) + 'ms';
         renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; 
     }
@@ -440,13 +410,12 @@
             item.onclick = () => { 
                 tracks[activeTrackIdx].name = file; 
                 tracks[activeTrackIdx].nudge = 0;
+                document.getElementById('modal-nudge').value = 0;
                 document.getElementById('modal-nudge-val').innerText = '0ms';
                 if(preFetchedBuffers[file]) {
                     const bufferCopy = preFetchedBuffers[file].slice(0);
-                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[activeTrackIdx].buffer = decoded; }, () => {
-                        tracks[activeTrackIdx].buffer = generateFallbackBuffer();
-                    });
-                } else { tracks[activeTrackIdx].buffer = generateFallbackBuffer(); }
+                    audioCtx.decodeAudioData(bufferCopy, (decoded) => { tracks[activeTrackIdx].buffer = decoded; });
+                } else { tracks[activeTrackIdx].buffer = null; }
                 renderSequencer(); renderModalLane(); 
             };
             list.appendChild(item);
@@ -462,7 +431,7 @@
         container.innerHTML = '';
         for(let b=0; b < track.bars; b++) {
             const row = document.createElement('div'); row.className = 'bar-row';
-            row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}" style="display:none;"></div>` + 
+            row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}"></div>` + 
                 `<div class="node-wrapper">` +
                 Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('') +
                 `</div>`;
