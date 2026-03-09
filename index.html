@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.12.3</title>
+    <title>dum-Sampler v0.12.4</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -88,7 +88,7 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.3</span></div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.4</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -125,7 +125,7 @@
                 <span>Start Point Nudge (Latency)</span>
                 <span id="modal-nudge-val" style="color:#fff;">0ms</span>
             </span>
-            <input type="range" id="modal-nudge" min="-400" max="400" value="0" step="5">
+            <input type="range" id="modal-nudge" min="-300" max="300" value="0" step="5">
         </div>
 
         <div class="modal-header-btns">
@@ -144,9 +144,9 @@
         { name: 'ds_kick1.wav', steps: [0, 4], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
         { name: 'ds_snare1.wav', steps: [8], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
         { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_hihat2.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_clapsn1.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_kick2.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
         { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
         { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null }
     ];
@@ -201,7 +201,7 @@
                     <span>Track Nudge</span>
                     <span id="lane-nudge-val-${tIdx}" style="color:#fff;">${track.nudge}ms</span>
                 </span>
-                <input type="range" min="-400" max="400" value="${track.nudge}" step="5" oninput="updateLaneNudge(${tIdx}, this.value)">
+                <input type="range" min="-300" max="300" value="${track.nudge}" step="5" oninput="updateLaneNudge(${tIdx}, this.value)">
             </div>
             <div class="bars-container">${barHtml}</div>`;
             
@@ -347,7 +347,15 @@
         gain.gain.value = (vol / 100) * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(masterGain);
         
-        let startTime = time + (nudgeMs / 1000);
+        // Reverted to exactly how it worked in v0.12.2
+        let startTime = time;
+        let offsetInFile = 0;
+        
+        if (nudgeMs < 0) {
+            offsetInFile = Math.abs(nudgeMs) / 1000;
+        } else if (nudgeMs > 0) {
+            startTime += (nudgeMs / 1000);
+        }
         
         if (trackObj && trackObj.choke) {
             if (trackObj.lastSource) {
@@ -356,7 +364,7 @@
             trackObj.lastSource = source;
         }
 
-        source.start(startTime);
+        source.start(startTime, offsetInFile);
     }
 
     function updateUI() {
