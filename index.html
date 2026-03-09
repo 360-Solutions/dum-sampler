@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.12.4</title>
+    <title>dum-Sampler v0.12.5</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -73,8 +73,7 @@
         .rec-btn.waiting { background: #aaaaaa; color: #000; }
         .rec-btn.recording { background: #fff; color: #ff0000; animation: pulse 1s infinite; }
         
-        .action-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 11px; cursor: pointer; }
-        .commit-btn { background: #28a745; color: white; font-weight: 600; }
+        .action-btn { background: #444; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 11px; cursor: pointer; min-width: 90px;}
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
@@ -88,7 +87,7 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.4</span></div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.5</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -131,7 +130,6 @@
         <div class="modal-header-btns">
             <button class="action-btn" id="modal-clear-btn">DELETE</button>
             <button class="rec-btn" id="rec-action-btn">● RECORD</button>
-            <button class="action-btn commit-btn" id="modal-commit-btn">COMMIT</button>
         </div>
 
         <div class="sample-list" id="modal-sample-list"></div>
@@ -159,7 +157,7 @@
     let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
     let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
     let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
-    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
+    let mediaRecorder = null, audioChunks = [];
     let targetBarLength = 16;
 
     tracks.forEach(t => { 
@@ -278,12 +276,17 @@
             });
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            
+            // Auto-Commit Logic directly to the track buffer
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 audioCtx.decodeAudioData(arrayBuffer, (decoded) => {
-                    tempBuffer = normalizeBuffer(decoded);
-                    document.getElementById('modal-track-name').innerText = "PREVIEW READY";
+                    userSampleCount++;
+                    tracks[activeTrackIdx].buffer = normalizeBuffer(decoded);
+                    tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
+                    document.getElementById('modal-track-name').innerText = tracks[activeTrackIdx].name.toUpperCase();
+                    renderSequencer();
                 });
             };
         } catch (err) { console.error("Mic error: " + err); }
@@ -320,8 +323,13 @@
                     }
                 }
                 
-                if (!isRecordingNow && tempBuffer && laneRelative === 0) { 
-                    playSample(tempBuffer, nextStepTime, 1.0, tracks[activeTrackIdx].nudge, tracks[activeTrackIdx]); 
+                // Artificially trigger the "Red Node" in the modal instantly, 
+                // but ONLY if the user doesn't already have the grid node active.
+                if (!isRecordingNow && laneRelative === 0) {
+                    const track = tracks[activeTrackIdx];
+                    if (track.buffer && !track.steps[0]) {
+                        playSample(track.buffer, nextStepTime, track.volume, track.nudge, track); 
+                    }
                 }
             }
 
@@ -347,7 +355,6 @@
         gain.gain.value = (vol / 100) * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(masterGain);
         
-        // Reverted to exactly how it worked in v0.12.2
         let startTime = time;
         let offsetInFile = 0;
         
@@ -418,23 +425,15 @@
         isWaitingForFirstOne = true; updateRecBtnUI(); 
     };
     
-    document.getElementById('modal-commit-btn').onclick = () => {
-        if (!tempBuffer) return;
-        userSampleCount++;
-        tracks[activeTrackIdx].buffer = tempBuffer;
-        tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
-        
-        tempBuffer = null;
-        renderSequencer(); closeModal();
-    };
-
     document.getElementById('modal-clear-btn').onclick = () => {
-        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
+        tracks[activeTrackIdx].buffer = null; 
+        tracks[activeTrackIdx].name = "EMPTY";
         tracks[activeTrackIdx].steps.fill(false); 
         
         tracks[activeTrackIdx].nudge = -200; 
         document.getElementById('modal-nudge').value = -200;
         document.getElementById('modal-nudge-val').innerText = '-200ms';
+        document.getElementById('modal-track-name').innerText = "READY";
         
         renderSequencer(); renderModalLane();
     };
