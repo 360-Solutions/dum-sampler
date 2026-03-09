@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.11.4</title>
+    <title>dum-Sampler v0.11.5</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -79,7 +79,7 @@
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.4</span></div>
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 18px;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.11.5</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -123,13 +123,7 @@
 </div>
 
 <script>
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
-    let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
-    let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
-    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
-
-    const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
+    // 1. DATA INITIALIZATION
     const tracks = [
         { name: 'ds_kick1.wav', steps: [0, 4], volume: 0.9, bars: 1, buffer: null },
         { name: 'ds_snare1.wav', steps: [8], volume: 0.8, bars: 1, buffer: null },
@@ -147,25 +141,10 @@
         t.steps = s;
     });
 
-    async function initMic() {
-        if (mediaRecorder) return;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
-            });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                tempBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                document.getElementById('modal-track-name').innerText = "PREVIEW READY";
-            };
-        } catch (err) { console.log("Mic error: " + err); }
-    }
-
+    // 2. UI RENDERER (Built first to avoid blank screens)
     function renderSequencer() {
         const mainGrid = document.getElementById('main-grid');
+        if (!mainGrid) return;
         mainGrid.innerHTML = '';
         tracks.forEach((track, tIdx) => {
             const lane = document.createElement('div');
@@ -186,19 +165,30 @@
         });
     }
 
-    function renderModalLane() {
-        if(activeTrackIdx === null) return;
-        const track = tracks[activeTrackIdx];
-        const container = document.getElementById('modal-bars-container');
-        document.getElementById('modal-track-name').innerText = track.name.toUpperCase();
-        document.getElementById('modal-bar-label').innerText = `${track.bars} BAR LOOP`;
-        container.innerHTML = '';
-        for(let b=0; b < track.bars; b++) {
-            const row = document.createElement('div'); row.className = 'bar-row';
-            row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}" style="display:none;"></div>` + 
-                Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('');
-            container.appendChild(row);
-        }
+    // 3. AUDIO ENGINE
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let isPlaying = false, currentStep = 0, nextStepTime = 0, masterMuted = false, activeTrackIdx = null;
+    let isWaitingForFirstOne = false, isWaitingFullCycle = false, isRecordingNow = false;
+    let cycleCounter = 0, recordCounter = 0, userSampleCount = 0;
+    let mediaRecorder = null, audioChunks = [], tempBuffer = null;
+
+    async function initMic() {
+        if (mediaRecorder) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
+            });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                audioCtx.decodeAudioData(arrayBuffer, (decoded) => {
+                    tempBuffer = decoded;
+                    document.getElementById('modal-track-name').innerText = "PREVIEW READY";
+                });
+            };
+        } catch (err) { console.log("Mic error: " + err); }
     }
 
     function scheduler() {
@@ -206,7 +196,6 @@
             if (activeTrackIdx !== null) {
                 const laneMax = tracks[activeTrackIdx].bars * 16;
                 const laneRelative = currentStep % laneMax;
-
                 if (isWaitingForFirstOne && laneRelative === 0) {
                     isWaitingForFirstOne = false; isWaitingFullCycle = true; cycleCounter = 0; updateRecBtnUI();
                 }
@@ -223,54 +212,17 @@
                         isRecordingNow = false; masterMuted = false; mediaRecorder.stop(); updateRecBtnUI();
                     }
                 }
-                if (!isRecordingNow && tempBuffer && laneRelative === 0) {
-                     playSample(tempBuffer, nextStepTime, 1.0);
-                }
+                if (!isRecordingNow && tempBuffer && laneRelative === 0) { playSample(tempBuffer, nextStepTime, 1.0); }
             }
-
             if (!masterMuted) {
                 tracks.forEach((track) => {
-                    if (track.steps[currentStep % (track.bars * 16)]) {
-                        playSample(track.buffer, nextStepTime, track.volume);
-                    }
+                    if (track.steps[currentStep % (track.bars * 16)]) { playSample(track.buffer, nextStepTime, track.volume); }
                 });
             }
             nextStepTime += (60 / document.getElementById('tempo').value) / 4;
             currentStep++; 
         }
-        if (isPlaying) { requestAnimationFrame(updateUI); setTimeout(scheduler, 25); }
-    }
-
-    document.getElementById('play-btn').onclick = function() {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        initMic(); 
-        isPlaying = !isPlaying;
-        if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
-        else { document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); masterMuted = false; updateRecBtnUI(); }
-        this.innerText = isPlaying ? "STOP" : "PLAY";
-    };
-
-    document.getElementById('rec-action-btn').onclick = () => { isWaitingForFirstOne = true; updateRecBtnUI(); };
-    
-    document.getElementById('modal-commit-btn').onclick = () => {
-        if (!tempBuffer) return;
-        userSampleCount++;
-        tracks[activeTrackIdx].buffer = tempBuffer;
-        tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
-        tempBuffer = null;
-        renderSequencer(); closeModal();
-    };
-
-    document.getElementById('modal-clear-btn').onclick = () => {
-        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
-        tracks[activeTrackIdx].steps.fill(false); renderSequencer(); renderModalLane();
-    };
-
-    function updateRecBtnUI() {
-        const btn = document.getElementById('rec-action-btn');
-        if (isWaitingForFirstOne || isWaitingFullCycle) { btn.innerText = "WAITING..."; btn.className = "rec-btn waiting"; }
-        else if (isRecordingNow) { btn.innerText = "RECORDING!"; btn.className = "rec-btn recording"; }
-        else { btn.innerText = "● RECORD"; btn.className = "rec-btn"; }
+        if (isPlaying) { setTimeout(scheduler, 25); requestAnimationFrame(updateUI); }
     }
 
     function playSample(buffer, time, vol) {
@@ -303,8 +255,40 @@
         });
     }
 
+    // 4. EVENT HANDLERS
+    document.getElementById('play-btn').onclick = function() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        initMic(); 
+        isPlaying = !isPlaying;
+        if (isPlaying) { currentStep = 0; nextStepTime = audioCtx.currentTime; scheduler(); }
+        else { document.querySelectorAll('.playhead').forEach(ph => ph.style.display = 'none'); masterMuted = false; updateRecBtnUI(); }
+        this.innerText = isPlaying ? "STOP" : "PLAY";
+    };
+
+    document.getElementById('rec-action-btn').onclick = () => { isWaitingForFirstOne = true; updateRecBtnUI(); };
+    
+    document.getElementById('modal-commit-btn').onclick = () => {
+        if (!tempBuffer) return;
+        userSampleCount++;
+        tracks[activeTrackIdx].buffer = tempBuffer;
+        tracks[activeTrackIdx].name = `USER_${userSampleCount}`;
+        tempBuffer = null;
+        renderSequencer(); closeModal();
+    };
+
+    document.getElementById('modal-clear-btn').onclick = () => {
+        tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
+        tracks[activeTrackIdx].steps.fill(false); renderSequencer(); renderModalLane();
+    };
+
+    function updateRecBtnUI() {
+        const btn = document.getElementById('rec-action-btn');
+        if (isWaitingForFirstOne || isWaitingFullCycle) { btn.innerText = "WAITING..."; btn.className = "rec-btn waiting"; }
+        else if (isRecordingNow) { btn.innerText = "RECORDING!"; btn.className = "rec-btn recording"; }
+        else { btn.innerText = "● RECORD"; btn.className = "rec-btn"; }
+    }
+
     function tglNode(t, s, el) { tracks[t].steps[s] = !tracks[t].steps[s]; el.classList.toggle('active'); }
-    document.getElementById('tempo').oninput = function() { document.getElementById('bpm-text').innerText = `${this.value} BPM`; };
     function openModal(i) { activeTrackIdx = i; renderModalLane(); populateSampleList(); document.getElementById('sample-modal').style.display = 'flex'; }
     function closeModal() { activeTrackIdx = null; document.getElementById('sample-modal').style.display = 'none'; }
     function populateSampleList() {
@@ -315,11 +299,25 @@
             list.appendChild(item);
         });
     }
+    function renderModalLane() {
+        if(activeTrackIdx === null) return;
+        const track = tracks[activeTrackIdx];
+        const container = document.getElementById('modal-bars-container');
+        document.getElementById('modal-track-name').innerText = track.name.toUpperCase();
+        container.innerHTML = '';
+        for(let b=0; b < track.bars; b++) {
+            const row = document.createElement('div'); row.className = 'bar-row';
+            row.innerHTML = `<div class="playhead" id="modal-ph-bar-${b}" style="display:none;"></div>` + 
+                Array.from({length: 16}).map((_, s) => `<div class="modal-node ${(b===0&&s===0)?'the-only-one':''}"></div>`).join('');
+            container.appendChild(row);
+        }
+    }
     function cycleBars(i) { tracks[i].bars = [1, 2, 4][([1, 2, 4].indexOf(tracks[i].bars) + 1) % 3]; renderSequencer(); if(activeTrackIdx === i) renderModalLane(); }
     document.getElementById('modal-bar-cycle').onclick = () => { if(activeTrackIdx !== null) cycleBars(activeTrackIdx); };
-    async function loadSingleSample(i) { try { const res = await fetch(`samples/${tracks[i].name}`); const buf = await res.arrayBuffer(); tracks[i].buffer = await audioCtx.decodeAudioData(buf); } catch (e) {} }
+    async function loadSingleSample(i) { try { const res = await fetch(`samples/${tracks[i].name}`); const buf = await res.arrayBuffer(); const decoded = await audioCtx.decodeAudioData(buf); tracks[i].buffer = decoded; } catch (e) {} }
     async function loadAll() { for (let i=0; i<tracks.length; i++) await loadSingleSample(i); }
 
+    // INITIAL LAUNCH
     renderSequencer();
     loadAll();
 </script>
