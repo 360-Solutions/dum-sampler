@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v0.12.2</title>
+    <title>dum-Sampler v0.12.3</title>
     <style>
         :root {
             --bg-color: #001a35;
@@ -88,7 +88,7 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.2</span></div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v0.12.3</span></div>
     <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
 </header>
 
@@ -97,7 +97,7 @@
         <button id="play-btn">PLAY</button>
         <div class="sliders-group">
             <div style="display: flex; justify-content: space-between;">
-                <span class="slider-label">Volume</span>
+                <span class="slider-label">Master Vol</span>
                 <span class="slider-label">Tempo: <span id="bpm-text">150 BPM</span></span>
             </div>
             <div style="display: flex; gap: 10px;">
@@ -125,7 +125,7 @@
                 <span>Start Point Nudge (Latency)</span>
                 <span id="modal-nudge-val" style="color:#fff;">0ms</span>
             </span>
-            <input type="range" id="modal-nudge" min="-250" max="250" value="0" step="5">
+            <input type="range" id="modal-nudge" min="-400" max="400" value="0" step="5">
         </div>
 
         <div class="modal-header-btns">
@@ -141,14 +141,14 @@
 
 <script>
     const tracks = [
-        { name: 'ds_kick1.wav', steps: [0, 4], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_snare1.wav', steps: [8], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_hihat2.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_clapsn1.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'ds_kick2.wav', steps: [], volume: 0.8, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
-        { name: 'EMPTY', steps: [], volume: 0.8, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null }
+        { name: 'ds_kick1.wav', steps: [0, 4], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'ds_snare1.wav', steps: [8], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'ds_hihat1.wav', steps: [0, 2, 4, 6, 8, 10, 12, 14], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'ds_hihat2.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'ds_clapsn1.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'ds_kick2.wav', steps: [], volume: 80, bars: 1, nudge: 0, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null },
+        { name: 'EMPTY', steps: [], volume: 80, bars: 1, nudge: -200, choke: true, buffer: null, lastSource: null }
     ];
 
     const sampleFiles = ['ds_kick1.wav', 'ds_snare1.wav', 'ds_hihat1.wav', 'ds_hihat2.wav', 'ds_clapsn1.wav', 'ds_kick2.wav'];
@@ -189,7 +189,7 @@
             lane.innerHTML = `
             <div class="track-controls">
                 <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
-                <input type="range" min="0" max="3" step="0.1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:25%;">
+                <input type="range" min="0" max="100" step="1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:25%;">
                 <div class="controls-right">
                     <button class="action-sm-btn" onclick="toggleNudgePanel(${tIdx})">SYNC</button>
                     <button class="action-sm-btn ${track.choke ? 'active-choke' : ''}" onclick="toggleChoke(${tIdx})">CHOKE:${track.choke ? 'ON' : 'OFF'}</button>
@@ -201,7 +201,7 @@
                     <span>Track Nudge</span>
                     <span id="lane-nudge-val-${tIdx}" style="color:#fff;">${track.nudge}ms</span>
                 </span>
-                <input type="range" min="-250" max="250" value="${track.nudge}" step="5" oninput="updateLaneNudge(${tIdx}, this.value)">
+                <input type="range" min="-400" max="400" value="${track.nudge}" step="5" oninput="updateLaneNudge(${tIdx}, this.value)">
             </div>
             <div class="bars-container">${barHtml}</div>`;
             
@@ -303,7 +303,6 @@
                     if (cycleCounter >= targetBarLength && laneRelative === targetBarLength - 1) {
                         isWaitingFullCycle = false; isRecordingNow = true; masterMuted = true;
                         
-                        // Hardware-level volume chop exactly on the "One"
                         masterGain.gain.setValueAtTime(0, nextStepTime);
                         
                         recordCounter = 0; audioChunks = []; 
@@ -315,7 +314,6 @@
                     if (recordCounter >= targetBarLength && laneRelative === targetBarLength - 1) {
                         isRecordingNow = false; masterMuted = false; 
                         
-                        // Restore master volume exactly after recording ends
                         masterGain.gain.setValueAtTime(1, nextStepTime);
                         
                         setTimeout(() => mediaRecorder.stop(), 0); updateRecBtnUI();
@@ -327,7 +325,6 @@
                 }
             }
 
-            // Even if muted, we let the scheduler run. The MasterGain being 0 handles the silence mathematically.
             if (!masterMuted) {
                 tracks.forEach((track) => {
                     if (track.steps[currentStep % (track.bars * 16)]) { 
@@ -346,19 +343,11 @@
         const source = audioCtx.createBufferSource();
         const gain = audioCtx.createGain();
         source.buffer = buffer; 
-        gain.gain.value = vol * document.getElementById('master-vol').value; 
         
-        // Route audio through the Master Kill Switch
+        gain.gain.value = (vol / 100) * document.getElementById('master-vol').value; 
         source.connect(gain); gain.connect(masterGain);
         
-        let startTime = time;
-        let offsetInFile = 0;
-        
-        if (nudgeMs < 0) {
-            offsetInFile = Math.abs(nudgeMs) / 1000;
-        } else if (nudgeMs > 0) {
-            startTime += (nudgeMs / 1000);
-        }
+        let startTime = time + (nudgeMs / 1000);
         
         if (trackObj && trackObj.choke) {
             if (trackObj.lastSource) {
@@ -367,7 +356,7 @@
             trackObj.lastSource = source;
         }
 
-        source.start(startTime, offsetInFile);
+        source.start(startTime);
     }
 
     function updateUI() {
@@ -435,7 +424,6 @@
         tempBuffer = null; tracks[activeTrackIdx].buffer = null; tracks[activeTrackIdx].name = "EMPTY";
         tracks[activeTrackIdx].steps.fill(false); 
         
-        // Resetting to the default -200ms when cleared
         tracks[activeTrackIdx].nudge = -200; 
         document.getElementById('modal-nudge').value = -200;
         document.getElementById('modal-nudge-val').innerText = '-200ms';
@@ -468,7 +456,6 @@
     function openModal(i) { 
         activeTrackIdx = i; 
         
-        // Modal inherently pulls the track's current value (which defaults to -200 for empty tracks)
         document.getElementById('modal-nudge').value = tracks[i].nudge || 0;
         document.getElementById('modal-nudge-val').innerText = (tracks[i].nudge || 0) + 'ms';
         
@@ -488,7 +475,6 @@
             item.onclick = () => { 
                 tracks[activeTrackIdx].name = file; 
                 
-                // If it's a preloaded file, snap back to 0ms
                 tracks[activeTrackIdx].nudge = 0;
                 document.getElementById('modal-nudge').value = 0;
                 document.getElementById('modal-nudge-val').innerText = '0ms';
