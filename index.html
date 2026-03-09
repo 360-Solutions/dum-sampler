@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>dum-Sampler v1.0</title>
+    <title>dum-Sampler v1.01</title>
     <style>
         :root {
             --bg-color: #001a35;
             --panel-color: #002d5c;
-            --accent-color: #cccccc;
+            --accent-color: #87cefa;
             --text-color: #ffffff;
-            --node-off: #004080;
-            --node-on: #cccccc;
+            --node-off: #003366;
+            --node-on: #87cefa;
             --rec-red: #ff0000;
             --the-one: #ff3333;
         }
@@ -90,8 +90,8 @@
 <body>
 
 <header>
-    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v1.0</span></div>
-    <div class="version-info">Created by Jeremiah Keller<br>Sacramento 2026</div>
+    <div style="color: var(--accent-color); font-size: 18px; font-weight:bold;">dum-Sampler <span style="color:white; font-size: 12px; opacity:0.6;">v1.01</span></div>
+    <div class="version-info">Created by Jeremiah Keller</div>
 </header>
 
 <div class="transport">
@@ -190,10 +190,10 @@
             lane.innerHTML = `
             <div class="track-controls">
                 <div class="sample-name" onclick="openModal(${tIdx})">${track.name}</div>
-                <div style="display:flex; align-items:center; gap:3px; flex-grow:1; margin: 0 4px;">
-                    <button class="action-sm-btn ${track.mute ? 'active-mute' : ''}" style="padding:4px;" onclick="toggleMute(${tIdx})">M</button>
+                <div style="display:flex; align-items:center; gap:4px; flex-grow:1; margin: 0 4px;">
+                    <button class="action-sm-btn ${track.mute ? 'active-mute' : ''}" style="padding:6px 4px; font-weight:bold; min-width:26px;" onclick="toggleMute(${tIdx})">M</button>
                     <input type="range" min="0" max="100" step="1" value="${track.volume}" oninput="tracks[${tIdx}].volume=this.value" style="width:100%; min-width:30px;">
-                    <button class="action-sm-btn ${track.solo ? 'active-solo' : ''}" style="padding:4px;" onclick="toggleSolo(${tIdx})">S</button>
+                    <button class="action-sm-btn ${track.solo ? 'active-solo' : ''}" style="padding:6px 4px; font-weight:bold; min-width:26px;" onclick="toggleSolo(${tIdx})">S</button>
                 </div>
                 <div class="controls-right">
                     <button class="action-sm-btn" onclick="toggleNudgePanel(${tIdx})">SYNC</button>
@@ -229,12 +229,12 @@
     }
 
     async function preFetchAll() {
-        for (let t of tracks) {
-            if (t.name !== 'EMPTY' && !preFetchedBuffers[t.name]) {
+        for (let file of sampleFiles) {
+            if (!preFetchedBuffers[file]) {
                 try {
-                    const res = await fetch(`samples/${t.name}`);
-                    if(res.ok) preFetchedBuffers[t.name] = await res.arrayBuffer();
-                } catch (e) { console.warn("Missing file or offline:", t.name); }
+                    const res = await fetch(`samples/${file}`);
+                    if(res.ok) preFetchedBuffers[file] = await res.arrayBuffer();
+                } catch (e) { console.warn("Missing file or offline:", file); }
             }
         }
     }
